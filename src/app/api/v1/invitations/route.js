@@ -42,7 +42,7 @@ export async function POST(request) {
     const now = new Date();
     const invitation = { tenant_id: tenant, email, email_normalized: email, role, status: 'PENDING', token_hash: createHash('sha256').update(rawToken).digest('hex'), created_by: auth.user.id, created_at: now, expires_at: new Date(now.getTime() + 7 * 86400000) };
     const result = await db.collection('invitations').insertOne(invitation);
-    const origin = process.env.APP_BASE_URL?.trim().replace(/\/$/, '');
+    const origin = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).trim().replace(/\/$/, '');
     return NextResponse.json({ success: true, data: { id: result.insertedId.toString(), email, role, status: 'PENDING', expires_at: invitation.expires_at, invitation_url: origin ? origin + '/accept-invitation?token=' + encodeURIComponent(rawToken) : null }, message: origin ? 'Invitation created. Share the link securely with the invitee.' : 'Invitation created; configure APP_BASE_URL to generate a link.' }, { status: 201 });
   } catch (error) { const e = mongoUnavailable(error); return NextResponse.json({ success: false, error: { code: 'DATABASE_ERROR', message: e.message } }, { status: e.status }); }
 }

@@ -106,15 +106,21 @@ export async function POST(request, { params }) {
     const cookieStore = await cookies();
     const context = await getAuthContext().catch(() => ({ accessToken: null }));
     const accessToken = context.accessToken || cookieStore.get('mks_mfa_pending_access')?.value;
+    let providerRevoked = false;
     if (accessToken) {
       const scope = action === 'revoke-sessions' ? '?scope=global' : '';
-      await supabaseFetch(`/auth/v1/logout${scope}`, accessToken, { method: 'POST' }).catch(() => null);
+      const result = await supabaseFetch(`/auth/v1/logout${scope}`, accessToken, { method: 'POST' }).catch(() => null);
+      providerRevoked = Boolean(result?.ok);
     }
     await clearSessionCookies();
     const response = NextResponse.json({
       success: true,
       data: null,
-      message: action === 'revoke-sessions' ? 'A global session revocation request was sent.' : 'Signed out.',
+      message: action === 'revoke-sessions'
+        ? providerRevoked
+          ? 'Global session revocation was accepted by the authentication provider.'
+          : 'This browser will be signed out, but provider-wide revocation could not be confirmed.'
+        : 'Signed out of this browser.',
     });
     clearAuthCookies(response);
     return response;

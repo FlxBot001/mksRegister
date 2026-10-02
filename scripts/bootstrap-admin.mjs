@@ -1,86 +1,50 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
+import { hashPassword } from '../src/lib/auth/credentials.mjs';
 
-const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'MONGODB_URI', 'MONGODB_DB_NAME', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_FULL_NAME', 'ADMIN_TENANT_NAME', 'ADMIN_TENANT_SLUG'];
+const required = ['MONGODB_URI', 'MONGODB_DB_NAME', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_FULL_NAME', 'ADMIN_TENANT_NAME', 'ADMIN_TENANT_SLUG'];
 for (const name of required) {
   if (!process.env[name]?.trim()) {
     console.error(`Missing required environment variable: ${name}`);
     process.exit(1);
   }
 }
-
-const supabaseUrl = process.env.SUPABASE_URL.trim().replace(/\/$/, '');
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
 const email = process.env.ADMIN_EMAIL.trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD;
 const fullName = process.env.ADMIN_FULL_NAME.trim();
 const tenantName = process.env.ADMIN_TENANT_NAME.trim();
 const tenantSlug = process.env.ADMIN_TENANT_SLUG.trim().toLowerCase();
-
 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('ADMIN_EMAIL must be a valid email address.');
 if (password.length < 12) throw new Error('ADMIN_PASSWORD must be at least 12 characters.');
 if (fullName.length < 2 || tenantName.length < 2 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tenantSlug)) throw new Error('Admin name, tenant name, or tenant slug is invalid.');
 
-async function supabase(path, options = {}) {
-  const response = await fetch(supabaseUrl + path, {
-    ...options,
-    cache: 'no-store',
-    headers: {
-      apikey: serviceKey,
-      Authorization: 'Bearer ' + serviceKey,
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
-  const text = await response.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-  if (!response.ok) throw new Error(`Supabase request failed (${response.status}): ${data?.msg || data?.message || data?.error_description || 'request rejected'}`);
-  return data;
-}
-
-const mongo = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000, appName: 'mks-register-admin-bootstrap' });
+const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000, appName: 'mks-register-admin-bootstrap' });
 try {
-  await mongo.connect();
-  await mongo.db(process.env.MONGODB_DB_NAME).command({ ping: 1 });
-  console.log('MongoDB connection verified.');
-
-  const users = await supabase('/auth/v1/admin/users?page=1&per_page=1000');
-  let user = (users?.users || []).find((item) => item.email?.toLowerCase() === email);
+  await client.connect();
+  const db = client.db(process.env.MONGODB_DB_NAME);
+  await db.command({ ping: 1 });
+  const now = new Date();
+  let user = await db.collection('users').findOne({ email_normalized: email });
   if (!user) {
-    const created = await supabase('/auth/v1/admin/users', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { full_name: fullName } }),
-    });
-    user = created.user || created;
-    console.log('Initial administrator Auth account created.');
+    user = { _id: new ObjectId(), email, email_normalized: email, full_name: fullName, password_hash: await hashPassword(password), status: 'ACTIVE', email_verified: true, mfa_enabled: false, created_at: now, updated_at: now, password_changed_at: now };
+    await db.collection('users').insertOne(user);
+    console.log('Initial administrator account created.');
   } else {
-    console.log('Administrator Auth account already exists; password was not changed.');
+    console.log('Administrator account already exists; its password was not changed.');
   }
-  if (!user?.id) throw new Error('Supabase did not return a valid administrator user ID.');
-
-  let tenant;
-  try {
-    tenant = await supabase('/rest/v1/tenants', {
-      method: 'POST',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({ name: tenantName, slug: tenantSlug, status: 'ACTIVE' }),
-    });
-    tenant = Array.isArray(tenant) ? tenant[0] : tenant;
-  } catch (error) {
-    const lookup = await supabase('/rest/v1/tenants?slug=eq.' + encodeURIComponent(tenantSlug) + '&select=id,name,slug&limit=1');
-    tenant = lookup[0];
-    if (!tenant) throw error;
+  let tenant = await db.collection('tenants').findOne({ slug_normalized: tenantSlug });
+  if (!tenant) {
+    tenant = { _id: new ObjectId(), name: tenantName, slug: tenantSlug, slug_normalized: tenantSlug, status: 'ACTIVE', created_by: user._id.toString(), created_at: now, updated_at: now };
+    await db.collection('tenants').insertOne(tenant);
   }
-  if (!tenant?.id) throw new Error('Could not resolve the initial tenant.');
-
-  await supabase('/rest/v1/tenant_memberships?on_conflict=tenant_id,user_id', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ tenant_id: tenant.id, user_id: user.id, role: 'OWNER', status: 'ACTIVE' }),
-  });
+  await db.collection('memberships').updateOne(
+    { tenant_id: tenant._id.toString(), user_id: user._id },
+    { $set: { role: 'OWNER', status: 'ACTIVE', updated_at: now }, $setOnInsert: { created_at: now } },
+    { upsert: true },
+  );
+  await db.collection('audit_logs').insertOne({ tenant_id: tenant._id.toString(), actor_id: user._id.toString(), action: 'bootstrap.admin_provisioned', entity_type: 'user', entity_id: user._id.toString(), created_at: now });
   console.log('Administrator has OWNER access to the configured workspace.');
-  console.log(`Workspace ID: ${tenant.id}`);
+  console.log(`Workspace ID: ${tenant._id.toString()}`);
   console.log('Bootstrap complete. Remove ADMIN_PASSWORD from the execution environment after use.');
 } finally {
-  await mongo.close();
+  await client.close();
 }

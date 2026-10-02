@@ -76,3 +76,10 @@ export async function revokeAllSessions(userId) {
   const result = await db.collection('sessions').updateMany({ user_id: id, revoked_at: null }, { $set: { revoked_at: new Date() } });
   return result.modifiedCount;
 }
+
+export async function clearSessionCookies() {
+  const store = await cookies();
+  for (const name of [SESSION_COOKIE, REMEMBER_COOKIE, 'mks_access_token', 'mks_refresh_token', 'mks_mfa_pending_access', 'mks_mfa_pending_refresh', 'mks_mfa_pending_factor', 'mks_mfa_pending_remember', 'mks_mfa_pending_token']) {
+    store.set(name, '', sessionCookieOptions(0));
+  }
+}

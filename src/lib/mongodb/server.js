@@ -31,6 +31,9 @@ export async function getDatabase() {
       db.collection('attendance').createIndex({ tenant_id: 1, service_id: 1, member_id: 1 }, { unique: true }),
       db.collection('invitations').createIndex({ tenant_id: 1, email_normalized: 1, status: 1 }),
       db.collection('audit_logs').createIndex({ tenant_id: 1, created_at: -1 }),
+      db.collection('auth_security_events').createIndex({ created_at: -1 }),
+      db.collection('auth_security_events').createIndex({ email_hash: 1, created_at: -1 }),
+      db.collection('auth_rate_limits').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     ]).catch((error) => {
       indexPromise = undefined;
       throw error;

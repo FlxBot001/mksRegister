@@ -1,0 +1,56 @@
+import 'server-only';
+
+import { createHash } from 'node:crypto';
+import { getDatabase } from '@/lib/mongodb/server';
+
+const WINDOW_MS = 15 * 60 * 1000;
+const EMAIL_LIMIT = 5;
+const IP_LIMIT = 20;
+
+function digest(value) {
+  return createHash('sha256').update(String(value || '')).digest('hex');
+}
+
+function getClientAddress(request) {
+  const forwarded = request.headers.get('x-forwarded-for');
+  const real = request.headers.get('x-real-ip');
+  const candidate = (forwarded || real || 'unknown').split(',')[0].trim();
+  return candidate.slice(0, 100) || 'unknown';
+}
+
+export async function beginLoginAttempt(request, email) {
+  const db = await getDatabase();
+  const now = Date.now();
+  const bucket = Math.floor(now / WINDOW_MS);
+  const expiresAt = new Date((bucket + 2) * WINDOW_MS);
+  const emailKey = `email:${digest(String(email || '').trim().toLowerCase())}:${bucket}`;
+  const ipKey = `ip:${digest(getClientAddress(request))}:${bucket}`;
+
+  const increment = async (key) => db.collection('auth_rate_limits').findOneAndUpdate(
+    { _id: key },
+    { $inc: { count: 1 }, $setOnInsert: { expiresAt, created_at: new Date(now) } },
+    { upsert: true, returnDocument: 'after', includeResultMetadata: false },
+  );
+
+  const [emailWindow, ipWindow] = await Promise.all([increment(emailKey), increment(ipKey)]);
+  const limited = emailWindow.count > EMAIL_LIMIT || ipWindow.count > IP_LIMIT;
+  if (limited) {
+    await recordLoginAttempt(request, email, { success: false, reason: 'rate_limited' });
+    return { limited: true, retryAfter: Math.max(1, Math.ceil(((bucket + 1) * WINDOW_MS - now) / 1000)) };
+  }
+  return { limited: false };
+}
+
+export async function recordLoginAttempt(request, email, { success, reason, userId } = {}) {
+  const db = await getDatabase();
+  const address = getClientAddress(request);
+  await db.collection('auth_security_events').insertOne({
+    event_type: success ? 'login_succeeded' : 'login_failed',
+    email_hash: digest(String(email || '').trim().toLowerCase()),
+    user_id: typeof userId === 'string' ? userId : null,
+    ip_hash: digest(address),
+    user_agent: (request.headers.get('user-agent') || '').slice(0, 500),
+    reason: String(reason || (success ? 'authenticated' : 'invalid_credentials')).slice(0, 80),
+    created_at: new Date(),
+  });
+}

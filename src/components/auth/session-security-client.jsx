@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import MfaSettingsClient from '@/components/auth/mfa-settings-client';
 import { CircleAlert, Fingerprint, LoaderCircle, LockKeyhole, LogOut, ShieldCheck, ShieldOff } from 'lucide-react';
 
 export default function SessionSecurityClient() {
@@ -59,6 +60,7 @@ export default function SessionSecurityClient() {
           </section>
           <section className='rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7'><span className='grid size-12 place-items-center rounded-2xl bg-slate-100 text-slate-700'><LockKeyhole size={23} aria-hidden='true' /></span><h2 className='mt-4 text-lg font-semibold'>Password</h2><p className='mt-2 text-sm leading-6 text-slate-500'>Use a unique password. Reset links are delivered by your configured Supabase Auth email provider.</p><Link href='/forgot-password' className='mt-5 inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50'>Send password reset</Link></section>
         </div>
+        <MfaSettingsClient />
         <section className='mt-5 rounded-2xl border border-rose-200 bg-white p-6 shadow-sm sm:p-7'><div className='flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between'><div className='flex items-start gap-4'><span className='grid size-12 shrink-0 place-items-center rounded-2xl bg-rose-50 text-rose-800'><ShieldOff size={23} aria-hidden='true' /></span><div><h2 className='text-lg font-semibold'>Sign out everywhere</h2><p className='mt-1 max-w-xl text-sm leading-6 text-slate-500'>Revoke the current Supabase Auth session globally where supported, then clear this browser’s session cookies. You will need to sign in again.</p></div></div><button type='button' onClick={() => void endSession('revoke-sessions')} disabled={Boolean(busy) || loading || !user} className='inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60'>{busy === 'revoke-sessions' ? <LoaderCircle size={16} className='animate-spin' aria-hidden='true' /> : <LogOut size={16} aria-hidden='true' />} Revoke sessions</button></div></section>
         <p className='mt-5 text-xs leading-5 text-slate-400'>For privacy, MKS Register does not display raw access or refresh tokens. Session inventory across devices depends on capabilities enabled by your authentication provider.</p>
       </div>

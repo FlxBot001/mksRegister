@@ -68,5 +68,5 @@ export async function getAuthContext({ refresh = true } = {}) {
 
 export async function clearSessionCookies() {
   const cookieStore = await cookies();
-  for (const name of [ACCESS_COOKIE, REFRESH_COOKIE]) cookieStore.set(name, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
+  for (const name of [ACCESS_COOKIE, REFRESH_COOKIE, 'mks_remember_session']) cookieStore.set(name, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
 }

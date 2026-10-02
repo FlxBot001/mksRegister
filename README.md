@@ -48,7 +48,7 @@ Attendance statuses are PRESENT, ABSENT, LATE, and EXCUSED. Invitation links exp
 
 ## Authentication behavior and limitations
 
-See [authentication and session lifecycle](docs/security/authentication.md) for cookie lifetimes, login throttling, recovery configuration, global revocation, and operational verification. TOTP multi-factor enrollment, sign-in challenge, and server-side authenticator-assurance enforcement are implemented through Supabase Auth. Provider-wide device-session inventory is not exposed by the current UI; global revocation is available.
+See [authentication and session lifecycle](docs/security/authentication.md) for cookie lifetimes, login throttling, recovery configuration, MFA, global revocation, and operational verification. The [workspace role matrix](docs/security/role-matrix.md) documents current permissions and intentionally restricted roles while ministry/group ABAC scopes are not implemented. TOTP multi-factor enrollment, sign-in challenge, and server-side authenticator-assurance enforcement are implemented through Supabase Auth. Provider-wide device-session inventory is not exposed by the current UI; global revocation is available.
 
 ## Tests and deployment status
 

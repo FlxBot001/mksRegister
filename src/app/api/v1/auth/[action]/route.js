@@ -152,7 +152,7 @@ export async function POST(request, { params }) {
 
     let throttle;
     try {
-      throttle = await beginLoginAttempt(request, identity.data.email);
+      throttle = await beginLoginAttempt(request, identity.data.email, 'mfa');
     } catch (error) {
       console.error('Unable to apply MFA verification throttling.', error);
       return fail('AUTH_SECURITY_UNAVAILABLE', 'Verification is temporarily unavailable. Please try again shortly.', 503);

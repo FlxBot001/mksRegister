@@ -51,5 +51,6 @@ Before production use, verify:
 4. Cookie behavior over HTTPS and across refresh/expiry.
 5. Local logout and global revocation with real test accounts.
 6. Password recovery end-to-end from email link through successful sign-in.
-7. Disabled/suspended membership denial across every protected API.
-8. Security-event access restrictions and retention under the approved policy.
+7. TOTP enrollment, wrong-code handling, sign-in challenge, assurance enforcement, and factor removal.
+8. Disabled/suspended membership denial across every protected API.
+9. Security-event access restrictions and retention under the approved policy.

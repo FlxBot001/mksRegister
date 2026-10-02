@@ -45,10 +45,6 @@ function setSessionCookies(response, session, remember = false) {
   });
 }
 
-function validEmail(value) {
-  return typeof value === 'string' && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
 export async function POST(request, { params }) {
   const { action } = await params;
 

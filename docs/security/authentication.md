@@ -18,7 +18,7 @@ Set `APP_BASE_URL` to the canonical HTTPS application origin. In Supabase Auth s
 
 Login attempts use MongoDB's `auth_rate_limits` collection with atomic increments in 15-minute buckets. The current policy allows up to 5 attempts per normalized email hash and 20 attempts per client-address hash per bucket. Exceeding either limit returns HTTP 429 and a `Retry-After` header. Bucket documents expire through a TTL index.
 
-The `auth_security_events` collection records success/failure, timestamp, user ID where available, reason, a hash of the normalized email, a hash of the client address, and a bounded user-agent string. Raw passwords, access tokens, refresh tokens, email addresses, and raw IP addresses are not stored in these records. Configure and review retention for security events under the organization's approved retention policy; this code does not invent a legal retention period.
+The `auth_security_events` collection records success/failure, timestamp, user ID where available, reason, a keyed HMAC-SHA-256 hash of the normalized email, a keyed HMAC-SHA-256 hash of the client address, and a bounded user-agent string. Set `AUTH_AUDIT_HASH_SECRET` to a cryptographically random value of at least 32 characters; login is fail-closed if this key is missing or too short. Raw passwords, access tokens, refresh tokens, email addresses, and raw IP addresses are not stored in these records. Configure and review retention for security events under the organization's approved retention policy; this code does not invent a legal retention period.
 
 The address used for throttling is derived from `x-forwarded-for` or `x-real-ip`. Production ingress must normalize/overwrite forwarding headers and prevent direct access that would allow clients to spoof them.
 

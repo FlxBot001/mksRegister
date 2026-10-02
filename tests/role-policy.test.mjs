@@ -29,6 +29,14 @@ test('member and volunteer roles do not inherit staff directory or reporting acc
   }
 });
 
+test('ministry, group, and communications roles are not given whole-church access before ABAC scopes exist', () => {
+  for (const role of ['MINISTRY_LEADER', 'GROUP_LEADER', 'COMMUNICATIONS']) {
+    assert.equal(roleHasPermission(role, 'members.read'), false);
+    assert.equal(roleHasPermission(role, 'attendance.read'), false);
+    assert.equal(roleHasPermission(role, 'reports.read'), false);
+  }
+});
+
 test('assignable role names are explicit and do not include platform super-admin', () => {
   assert.equal(ROLE_NAMES.includes('MANAGEMENT'), true);
   assert.equal(ROLE_NAMES.includes('COMMUNICATIONS'), true);

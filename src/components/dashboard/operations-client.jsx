@@ -67,7 +67,7 @@ export default function OperationsClient() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    Promise.resolve().then(async () => {
       setLoading(true); setError('');
       try {
         const list = await api('/api/v1/tenants');
@@ -80,7 +80,7 @@ export default function OperationsClient() {
         if (/sign in|session|unauthenticated/i.test(e.message)) router.replace('/login');
         else setError(e.message);
       } finally { if (active) setLoading(false); }
-    })();
+    });
     return () => { active = false; };
   }, [loadCore, loadTab, router]);
 

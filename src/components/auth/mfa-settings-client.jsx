@@ -77,8 +77,8 @@ export default function MfaSettingsClient() {
   }
 
   async function removeFactor(factor) {
-    const confirmed = window.confirm(`Remove ${factor.friendly_name || 'this authenticator'} from your account? You may be asked to set up MFA again if your organization requires it.`);
-    if (!confirmed) return;
+    const code = window.prompt('Enter the current six-digit authenticator code to remove this factor.');
+    if (!code || !/^\\d{6}$/.test(code.trim())) return;
     setBusy(true);
     setError('');
     setMessage('');
@@ -86,7 +86,7 @@ export default function MfaSettingsClient() {
       await requestJson('/api/v1/auth/mfa-unenroll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ factor_id: factor.id }),
+        body: JSON.stringify({ factor_id: factor.id, code: code.trim() }),
       });
       setMessage('Authenticator removed.');
       if (enrollment?.id === factor.id) setEnrollment(null);

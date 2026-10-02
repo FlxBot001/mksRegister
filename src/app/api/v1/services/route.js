@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getAuthContext } from '@/lib/supabase/server';
 import { getTenantMembership } from '@/lib/auth/tenant';
+import { roleHasPermission } from '@/lib/auth/role-policy.mjs';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const WRITE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT']);
 
 function tenantId(request, body) {
   return request.headers.get('x-tenant-id') || new URL(request.url).searchParams.get('tenant_id') || body?.tenant_id || '';
@@ -34,7 +34,7 @@ export async function POST(request) {
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Send valid JSON.' } }, { status: 400 }); }
   const tenant = tenantId(request, body);
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
-  if (!membership || !WRITE_ROLES.has(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot manage services.' } }, { status: 403 });
+  if (!roleHasPermission(membership?.role, 'services.manage')) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot manage services.' } }, { status: 403 });
   const name = typeof body?.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
   const description = typeof body?.description === 'string' ? body.description.trim() : '';
   if (name.length < 2 || name.length > 120 || description.length > 1000) return NextResponse.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Service name must be 2–120 characters; description must be at most 1000 characters.' } }, { status: 400 });

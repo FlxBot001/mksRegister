@@ -49,7 +49,7 @@ export async function POST(request, { params }) {
         const context = await getAuthContext();
         if (context.user) await revokeAllSessions(context.user.id);
       } catch { /* Clear the local session even if the database is unavailable. */ }
-    } else if (raw) {
+    } else if (action === 'logout' && raw) {
       try { await revokeSession(raw); } catch { /* Clear the local cookie regardless. */ }
     }
     const response = NextResponse.json({ success: true, data: null, message: action === 'revoke-sessions' ? 'All active sessions for this account were revoked.' : action === 'mfa-cancel' ? 'Authenticator sign-in cancelled.' : 'Signed out.' });
@@ -135,6 +135,10 @@ export async function POST(request, { params }) {
       const challenge = await db.collection('mfa_challenges').findOne({ token_hash: sha256(pending), expires_at: { $gt: new Date() } });
       if (!challenge) return fail('MFA_SESSION_EXPIRED', 'This sign-in challenge expired. Please sign in again.', 401);
       const user = await db.collection('users').findOne({ _id: challenge.user_id, status: 'ACTIVE', mfa_enabled: true });
+      let throttle;
+      try { throttle = await beginLoginAttempt(request, user?.email || '', 'mfa'); }
+      catch { return fail('AUTH_SECURITY_UNAVAILABLE', 'Verification is temporarily unavailable. Please try again shortly.', 503); }
+      if (throttle.limited) return fail('RATE_LIMITED', 'Too many verification attempts. Wait a little before trying again.', 429, { 'Retry-After': String(throttle.retryAfter) });
       if (!user?.mfa_secret || !verifyTotp(decryptSecret(user.mfa_secret), code)) {
         await recordLoginAttempt(request, user?.email || '', { success: false, userId: user?._id.toString(), reason: 'invalid_mfa_code', eventType: 'mfa_failed' }).catch(() => null);
         return fail('MFA_CODE_INVALID', 'That code could not be verified. Check your authenticator and try again.', 401);
@@ -207,6 +211,10 @@ export async function POST(request, { params }) {
       if (!user?.mfa_pending_secret || !user.mfa_pending_expires_at || user.mfa_pending_expires_at <= new Date()) return fail('MFA_ENROLLMENT_EXPIRED', 'Start authenticator setup again.', 409);
       if (!verifyTotp(decryptSecret(user.mfa_pending_secret), code)) return fail('MFA_CODE_INVALID', 'That code could not be verified. Try the current code.', 400);
       await db.collection('users').updateOne({ _id: user._id }, { $set: { mfa_secret: user.mfa_pending_secret, mfa_enabled: true, mfa_enabled_at: new Date(), updated_at: new Date() }, $unset: { mfa_pending_secret: '', mfa_pending_expires_at: '' } });
+      const store = await cookies();
+      const currentSession = store.get(SESSION_COOKIE)?.value;
+      if (currentSession) await db.collection('sessions').updateOne({ token_hash: sha256(currentSession), user_id: user._id, revoked_at: null }, { $set: { mfa_verified: true } });
+      await db.collection('sessions').updateMany({ user_id: user._id, revoked_at: null, ...(currentSession ? { token_hash: { $ne: sha256(currentSession) } } : {}) }, { $set: { revoked_at: new Date() } });
       return NextResponse.json({ success: true, data: { enabled: true }, message: 'Authenticator enabled successfully.' });
     } catch (error) { console.error('MFA enrollment verification failed.', error); return fail('MFA_ENROLL_FAILED', 'Could not enable the authenticator.', 503); }
   }

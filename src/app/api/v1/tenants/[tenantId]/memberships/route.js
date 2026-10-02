@@ -45,14 +45,16 @@ export async function PATCH(request, { params }) {
   if (target.role === 'OWNER' && (body.role && body.role !== 'OWNER' || body.status && body.status !== 'ACTIVE')) {
     const ownersQuery = new URLSearchParams({ select: 'user_id', tenant_id: 'eq.' + tenantId, role: 'eq.OWNER', status: 'eq.ACTIVE' });
     const owners = await supabaseFetch('/rest/v1/tenant_memberships?' + ownersQuery, access.auth.accessToken);
-    if (owners.ok && Array.isArray(owners.data) && owners.data.length <= 1) return fail('LAST_OWNER_PROTECTED', 'A workspace must keep at least one active owner.', 409);
+    if (!owners.ok) return fail('OWNER_CHECK_FAILED', 'Could not verify active workspace owners.', owners.status || 500);
+    if (Array.isArray(owners.data) && owners.data.length <= 1) return fail('LAST_OWNER_PROTECTED', 'A workspace must keep at least one active owner.', 409);
     if (access.membership.role !== 'OWNER') return fail('PERMISSION_DENIED', 'Only an owner can change another owner.', 403);
   }
   const update = {};
   if (body.role !== undefined) update.role = body.role;
   if (body.status !== undefined) update.status = body.status;
   update.updated_at = new Date().toISOString();
-  const saved = await supabaseFetch('/rest/v1/tenant_memberships?' + query.toString().replace('&select=user_id%2Crole%2Cstatus', '').replace('select=user_id%2Crole%2Cstatus&', ''), access.auth.accessToken, {
+  const updateQuery = new URLSearchParams({ tenant_id: 'eq.' + tenantId, user_id: 'eq.' + body.user_id });
+  const saved = await supabaseFetch('/rest/v1/tenant_memberships?' + updateQuery.toString(), access.auth.accessToken, {
     method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update),
   });
   if (!saved.ok) return fail('MEMBERSHIP_UPDATE_FAILED', 'Could not update this workspace membership.', saved.status || 500);

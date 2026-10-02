@@ -7,7 +7,7 @@ import { LoaderCircle, LockKeyhole, CircleAlert, CheckCircle2 } from 'lucide-rea
 
 export default function ResetPasswordForm() {
   const router = useRouter();
-  const [tokens, setTokens] = useState(null);
+  const [resetToken, setResetToken] = useState('');
   const [tokenError, setTokenError] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -17,12 +17,9 @@ export default function ResetPasswordForm() {
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const accessToken = fragment.get('access_token') || query.get('access_token');
-    const refreshToken = fragment.get('refresh_token') || query.get('refresh_token');
-    const type = fragment.get('type') || query.get('type');
-    if (accessToken && refreshToken && (!type || type === 'recovery')) {
-      setTokens({ access_token: accessToken, refresh_token: refreshToken });
+    const token = query.get('token') || '';
+    if (token.length >= 32) {
+      setResetToken(token);
       window.history.replaceState(null, '', window.location.pathname);
     } else {
       setTokenError('This page needs a valid password-reset link. Request a new link and open it on this device.');
@@ -32,7 +29,7 @@ export default function ResetPasswordForm() {
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
-    if (!tokens) {
+    if (!resetToken) {
       setError('Open the latest reset link from your email before choosing a password.');
       return;
     }
@@ -49,7 +46,7 @@ export default function ResetPasswordForm() {
       const response = await fetch('/api/v1/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...tokens, password }),
+        body: JSON.stringify({ token: resetToken, password }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success) {

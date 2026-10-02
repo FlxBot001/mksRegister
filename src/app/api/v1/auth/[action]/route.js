@@ -185,7 +185,9 @@ export async function POST(request, { params }) {
       if (!saved.modifiedCount) return fail('RESET_LINK_INVALID', 'This reset link is invalid or expired. Request a new one and try again.', 401);
       await db.collection('password_resets').updateOne({ _id: reset._id, used_at: null }, { $set: { used_at: new Date() } });
       await revokeAllSessions(reset.user_id.toString());
-      return NextResponse.json({ success: true, data: null, message: 'Password updated. Sign in again to continue.' });
+      const response = NextResponse.json({ success: true, data: null, message: 'Password updated. Sign in again to continue.' });
+      clearAuthCookies(response);
+      return response;
     } catch (error) { console.error('Password reset failed.', error); return fail('RESET_FAILED', 'Password reset is temporarily unavailable.', 503); }
   }
 
@@ -233,7 +235,7 @@ export async function POST(request, { params }) {
       const store = await cookies();
       const currentSession = store.get(SESSION_COOKIE)?.value;
       await db.collection('sessions').updateMany({ user_id: user._id, revoked_at: null, ...(currentSession ? { token_hash: { $ne: sha256(currentSession) } } : {}) }, { $set: { revoked_at: new Date() } });
-      return NextResponse.json({ success: true, data: null, message: 'Authenticator removed. Sign in again.' });
+      return NextResponse.json({ success: true, data: null, message: 'Authenticator removed. Other active sessions were revoked.' });
     } catch (error) { console.error('MFA removal failed.', error); return fail('MFA_UNENROLL_FAILED', 'Could not remove the authenticator.', 503); }
   }
 

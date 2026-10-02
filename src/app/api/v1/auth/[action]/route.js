@@ -144,7 +144,8 @@ export async function POST(request, { params }) {
         await recordLoginAttempt(request, email, { success: false, reason: 'invalid_credentials' }).catch(() => null);
         return fail('AUTHENTICATION_FAILED', 'We could not sign you in with those credentials.', 401);
       }
-      if (user.mfa_enabled && user.mfa_secret) {
+      if (user.mfa_enabled) {
+        if (!user.mfa_secret) return fail('MFA_CONFIGURATION_INVALID', 'Authenticator configuration is incomplete. Contact support.', 503);
         const pending = randomBytes(32).toString('base64url');
         await db.collection('mfa_challenges').insertOne({ token_hash: sha256(pending), user_id: user._id, remember: body.remember_session === true, expires_at: new Date(Date.now() + 5 * 60 * 1000), created_at: new Date() });
         const response = NextResponse.json({ success: true, data: { mfa_required: true, factor_label: 'Authenticator app' }, message: 'Enter the current code from your authenticator app.' });
@@ -199,6 +200,8 @@ export async function POST(request, { params }) {
     if (!isValidEmail(body.email)) return fail('VALIDATION_ERROR', 'Enter a valid email address.', 400);
     const email = normalizeEmail(body.email);
     try {
+      const throttle = await beginLoginAttempt(request, email, 'recover');
+      if (throttle.limited) return NextResponse.json({ success: true, data: null, message: 'If an account matches that email and email delivery is configured, password-reset instructions will be sent.' });
       const db = await getDatabase();
       const user = await db.collection('users').findOne({ email_normalized: email, status: 'ACTIVE' });
       if (user) {

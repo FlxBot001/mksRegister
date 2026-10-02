@@ -33,8 +33,9 @@ export async function supabaseFetch(path, accessToken, options = {}) {
 
 function setSessionCookies(cookieStore, session) {
   const secure = process.env.NODE_ENV === 'production';
+  const remember = cookieStore.get('mks_remember_session')?.value === 'true';
   cookieStore.set(ACCESS_COOKIE, session.access_token, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: Math.max(60, Number(session.expires_in) || 3600) });
-  cookieStore.set(REFRESH_COOKIE, session.refresh_token, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+  cookieStore.set(REFRESH_COOKIE, session.refresh_token, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 8 });
 }
 
 export async function getAuthContext({ refresh = true } = {}) {
@@ -58,7 +59,7 @@ export async function getAuthContext({ refresh = true } = {}) {
   let session = null;
   try { session = raw ? JSON.parse(raw) : null; } catch { session = null; }
   if (!refreshed.ok || !session?.access_token || !session?.user?.id) {
-    for (const name of [ACCESS_COOKIE, REFRESH_COOKIE]) cookieStore.set(name, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
+    for (const name of [ACCESS_COOKIE, REFRESH_COOKIE, 'mks_remember_session']) cookieStore.set(name, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
     return { user: null, accessToken: null, error: 'Your session has expired. Please sign in again.' };
   }
   setSessionCookies(cookieStore, session);

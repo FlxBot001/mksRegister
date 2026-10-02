@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'node:crypto';
 import { getAuthContext } from '@/lib/supabase/server';
 import { getTenantMembership } from '@/lib/auth/tenant';
+import { roleHasPermission } from '@/lib/auth/role-policy.mjs';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const INVITE_ROLES = new Set(['ADMIN', 'MANAGER', 'OWNER']);
 const ASSIGNABLE_ROLES = new Set(['ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER']);
 
 export async function GET(request) {
@@ -14,7 +14,7 @@ export async function GET(request) {
   const url = new URL(request.url);
   const tenant = request.headers.get('x-tenant-id') || url.searchParams.get('tenant_id') || '';
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
-  if (!membership || !INVITE_ROLES.has(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot view invitations.' } }, { status: 403 });
+  if (!membership || !roleHasPermission(membership?.role, 'invitations.manage')) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot view invitations.' } }, { status: 403 });
   try {
     const db = await getDatabase();
     const items = await db.collection('invitations').find({ tenant_id: tenant }).sort({ created_at: -1 }).limit(100).project({ token_hash: 0 }).toArray();

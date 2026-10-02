@@ -71,3 +71,25 @@ export function totpUri(secret, email) {
   const label = encodeURIComponent(`MKS Register:${email}`);
   return `otpauth://totp/${label}?secret=${secret}&issuer=MKS%20Register&algorithm=SHA1&digits=6&period=30`;
 }
+
+export function encryptSecret(value) {
+  const keyText = process.env.AUTH_ENCRYPTION_KEY?.trim();
+  if (!keyText || keyText.length < 32) throw new Error('AUTH_ENCRYPTION_KEY must be configured with at least 32 characters.');
+  const { createCipheriv } = require('node:crypto');
+  const key = createHash('sha256').update(keyText).digest();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()]);
+  return [iv.toString('base64url'), cipher.getAuthTag().toString('base64url'), encrypted.toString('base64url')].join('.');
+}
+
+export function decryptSecret(value) {
+  const keyText = process.env.AUTH_ENCRYPTION_KEY?.trim();
+  if (!keyText || keyText.length < 32) throw new Error('AUTH_ENCRYPTION_KEY must be configured with at least 32 characters.');
+  const { createDecipheriv } = require('node:crypto');
+  const [ivText, tagText, encryptedText] = String(value).split('.');
+  const key = createHash('sha256').update(keyText).digest();
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivText, 'base64url'));
+  decipher.setAuthTag(Buffer.from(tagText, 'base64url'));
+  return Buffer.concat([decipher.update(Buffer.from(encryptedText, 'base64url')), decipher.final()]).toString('utf8');
+}

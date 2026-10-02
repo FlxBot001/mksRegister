@@ -47,7 +47,7 @@ Attendance statuses are PRESENT, ABSENT, LATE, and EXCUSED. Invitation links exp
 
 ## Authentication behavior and limitations
 
-See [authentication and session lifecycle](docs/security/authentication.md) for cookie lifetimes, login throttling, recovery configuration, global revocation, and operational verification. Multi-factor authentication enrollment/challenge UI and provider-wide device-session inventory are not yet implemented; do not assume MFA is active unless it is configured and verified with the identity provider.
+See [authentication and session lifecycle](docs/security/authentication.md) for cookie lifetimes, login throttling, recovery configuration, global revocation, and operational verification. TOTP multi-factor enrollment, sign-in challenge, and server-side authenticator-assurance enforcement are implemented through Supabase Auth. Provider-wide device-session inventory is not exposed by the current UI; global revocation is available.
 
 ## Tests and deployment status
 

@@ -27,7 +27,7 @@ Never commit connection strings, passwords, reset tokens, session tokens, or enc
 
 All operational routes require an authenticated MongoDB session and the relevant active workspace membership. Supply the workspace ID through the `x-tenant-id` header or `tenant_id` query/body field as supported.
 
-- `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`, `POST /api/v1/auth/revoke-sessions`.
+- `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `GET /api/v1/auth/sessions`, `POST /api/v1/auth/change-password`, `POST /api/v1/auth/revoke-session`, `POST /api/v1/auth/logout`, `POST /api/v1/auth/revoke-sessions`.
 - `POST /api/v1/auth/recover`, `POST /api/v1/auth/reset-password`.
 - `POST /api/v1/auth/mfa-enroll`, `POST /api/v1/auth/mfa-enroll-verify`, `GET /api/v1/auth/mfa-factors`, `POST /api/v1/auth/mfa-unenroll`, `POST /api/v1/auth/mfa-verify`.
 - `GET/POST /api/v1/tenants` — list workspaces and create a workspace with OWNER membership.

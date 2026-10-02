@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getAuthContext } from '@/lib/supabase/server';
-import { getTenantMembership } from '@/lib/auth/tenant';
+import { canRecordAttendance, getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const EDIT_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
 const fail = (error) => { const e = mongoUnavailable(error); return NextResponse.json({ success: false, error: { code: e.status === 503 ? 'DATABASE_NOT_CONFIGURED' : 'DATABASE_ERROR', message: e.message } }, { status: e.status }); };
 
 export async function PATCH(request, { params }) {
@@ -15,7 +14,7 @@ export async function PATCH(request, { params }) {
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Send valid JSON.' } }, { status: 400 }); }
   const tenant = request.headers.get('x-tenant-id') || new URL(request.url).searchParams.get('tenant_id') || body?.tenant_id || '';
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
-  if (!membership || !EDIT_ROLES.has(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot correct attendance records.' } }, { status: 403 });
+  if (!canRecordAttendance(membership)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot correct attendance records.' } }, { status: 403 });
   const { attendanceId } = await params;
   if (!isValidObjectId(attendanceId)) return NextResponse.json({ success: false, error: { code: 'INVALID_ID', message: 'Invalid attendance ID.' } }, { status: 400 });
   const update = { updated_at: new Date(), updated_by: auth.user.id };

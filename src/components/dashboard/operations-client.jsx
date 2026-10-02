@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ClipboardList, FileBarChart2, LoaderCircle, MailPlus, RefreshCw, ShieldCheck, UsersRound, Wrench } from 'lucide-react';
 
-const MEMBER_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS']);
+const MEMBER_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
 
 const TABS = [
   { id: 'services', label: 'Services', icon: Wrench },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardList, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER'] },
-  { id: 'reports', label: 'Reports', icon: FileBarChart2, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'] },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardList, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'REGISTRAR', 'ATTENDANCE_OFFICER'] },
+  { id: 'reports', label: 'Reports', icon: FileBarChart2, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'] },
   { id: 'invitations', label: 'Invitations', icon: MailPlus, roles: ['OWNER', 'ADMIN', 'MANAGER'] },
   { id: 'permissions', label: 'Permissions', icon: ShieldCheck, roles: ['OWNER', 'ADMIN'] },
   { id: 'import', label: 'CSV import', icon: UsersRound, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'REGISTRAR'] },

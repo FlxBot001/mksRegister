@@ -59,7 +59,13 @@ export default function DashboardClient() {
     } finally { setLoading(false); }
   }, [loadMembers, router, tenantId]);
 
-  useEffect(() => { loadWorkspace(); }, [loadWorkspace]);
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) void loadWorkspace();
+    });
+    return () => { active = false; };
+  }, [loadWorkspace]);
 
   async function createTenant(event) {
     event.preventDefault();

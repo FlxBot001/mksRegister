@@ -24,6 +24,10 @@ Configure SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, MONGODB_UR
 
 No AppDeploy application is currently registered for this repository, so this document does not claim a live deployment URL or configured production secrets.
 
+## Readiness endpoint
+
+GET /api/health returns a minimal readiness status and checks MongoDB connectivity plus whether Supabase environment variables are present. It does not expose credentials. Use it as a deployment smoke check after secrets are configured.
+
 ## Verification checklist
 
 - Unit tests, lint, and production build pass on the exact deployed commit.

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { LoaderCircle, LockKeyhole, Mail } from 'lucide-react';
 
 export default function LoginForm() {
@@ -10,13 +11,14 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [rememberSession, setRememberSession] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
     setBusy(true);
     try {
-      const response = await fetch('/api/v1/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const response = await fetch('/api/v1/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, remember_session: rememberSession }) });
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
         setError(payload?.error?.message || 'Sign-in failed. Please try again.');

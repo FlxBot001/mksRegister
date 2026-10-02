@@ -15,7 +15,7 @@ This is a transitional hybrid architecture: authentication, workspace provisioni
 ## Configure locally
 
 1. Copy `.env.example` to `.env.local`.
-2. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the existing Auth and tenant-membership integration.
+2. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the existing Auth and tenant-membership integration. Set `SUPABASE_SERVICE_ROLE_KEY` as a server-only secret to enable invitation acceptance; never expose it through a `NEXT_PUBLIC_` variable.
 3. Create a MongoDB Atlas cluster and a dedicated database user. Allow network access only from your deployment provider where possible.
 4. Set `MONGODB_URI` and `MONGODB_DB_NAME`. URL-encode special characters in the MongoDB username/password.
 5. Set `APP_BASE_URL` to the canonical app origin for invitation links.

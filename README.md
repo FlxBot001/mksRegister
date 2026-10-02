@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# MKS Register
 
-## Getting Started
+MKS Register is a church registration and attendance management platform built on the existing Next.js App Router project using JavaScript/JSX and Tailwind CSS.
 
-First, run the development server:
+## Current foundation
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Responsive public landing page and sign-in page
+- Supabase Auth sign-in, sign-out, HTTP-only session cookies, and refresh-token handling
+- Multi-tenant workspace creation and listing
+- Tenant-scoped member directory with server-side role checks
+- PostgreSQL row-level security and audit triggers for core records
+- Initial relational schema for members, services, attendance, memberships, and audit logs
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Service and attendance user workflows, member editing, invitations, imports, reports, analytics, QR check-in, and AI workflows are not yet complete. They should be implemented as connected UI/API/database slices rather than mock screens.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See [deployment](docs/deployment.md), [architecture](docs/architecture.md), and [security](docs/security.md).
 
-## Learn More
+1. Copy `.env.example` to `.env.local`.
+2. Configure Supabase URL and anon key.
+3. Apply `supabase/migrations/202610020001_initial_tenant_foundation.sql` to a development project.
+4. Create or invite an initial user in Supabase Auth.
+5. Run `npm ci`, `npm run dev`, and open `http://localhost:3000`.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Do not treat this foundation as production-ready until lint, production build, authentication, tenant-isolation, authorization, and data-integrity tests pass against a configured Supabase environment.

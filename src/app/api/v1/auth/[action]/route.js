@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { ObjectId } from 'mongodb';
+import QRCode from 'qrcode';
 import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { beginLoginAttempt, recordLoginAttempt } from '@/lib/auth/login-security';
@@ -190,7 +191,9 @@ export async function POST(request, { params }) {
       const db = await getDatabase();
       const secret = generateTotpSecret();
       await db.collection('users').updateOne({ _id: new ObjectId(context.user.id) }, { $set: { mfa_pending_secret: encryptSecret(secret), mfa_pending_expires_at: new Date(Date.now() + 10 * 60 * 1000) } });
-      return NextResponse.json({ success: true, data: { factor: { id: 'totp', friendly_name: 'Authenticator app', secret, uri: totpUri(secret, context.user.email) } }, message: 'Add this authenticator and verify a code to enable MFA.' });
+      const uri = totpUri(secret, context.user.email);
+      const qr_code = await QRCode.toString(uri, { type: 'svg', errorCorrectionLevel: 'M', margin: 1, width: 240 });
+      return NextResponse.json({ success: true, data: { factor: { id: 'totp', friendly_name: 'Authenticator app', secret, uri, qr_code } }, message: 'Add this authenticator and verify a code to enable MFA.' });
     } catch (error) { console.error('MFA enrollment failed.', error); return fail('MFA_ENROLL_FAILED', 'Could not start authenticator setup. Check server configuration and try again.', 503); }
   }
 

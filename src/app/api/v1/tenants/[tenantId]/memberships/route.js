@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext, supabaseFetch } from '@/lib/supabase/server';
 import { getTenantMembership } from '@/lib/auth/tenant';
+import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
 const ASSIGNABLE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER']);
@@ -49,6 +50,24 @@ export async function PATCH(request, { params }) {
     if (Array.isArray(owners.data) && owners.data.length <= 1) return fail('LAST_OWNER_PROTECTED', 'A workspace must keep at least one active owner.', 409);
     if (access.membership.role !== 'OWNER') return fail('PERMISSION_DENIED', 'Only an owner can change another owner.', 403);
   }
+  let auditDb;
+  try {
+    auditDb = await getDatabase();
+    await auditDb.collection('audit_logs').insertOne({
+      tenant_id: tenantId,
+      actor_id: access.auth.user.id,
+      action: 'membership.update_requested',
+      entity_type: 'tenant_membership',
+      entity_id: body.user_id,
+      before: { role: target.role, status: target.status },
+      requested: { role: body.role ?? target.role, status: body.status ?? target.status },
+      created_at: new Date(),
+    });
+  } catch (error) {
+    const issue = mongoUnavailable(error);
+    return fail('AUDIT_UNAVAILABLE', 'Permission changes are paused because audit storage is unavailable.', issue.status);
+  }
+
   const update = {};
   if (body.role !== undefined) update.role = body.role;
   if (body.status !== undefined) update.status = body.status;
@@ -58,5 +77,21 @@ export async function PATCH(request, { params }) {
     method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update),
   });
   if (!saved.ok) return fail('MEMBERSHIP_UPDATE_FAILED', 'Could not update this workspace membership.', saved.status || 500);
-  return NextResponse.json({ success: true, data: Array.isArray(saved.data) ? saved.data[0] : saved.data, message: 'Workspace permissions updated.' });
+  const updated = Array.isArray(saved.data) ? saved.data[0] : saved.data;
+  try {
+    await auditDb.collection('audit_logs').insertOne({
+      tenant_id: tenantId,
+      actor_id: access.auth.user.id,
+      action: 'membership.updated',
+      entity_type: 'tenant_membership',
+      entity_id: body.user_id,
+      before: { role: target.role, status: target.status },
+      after: { role: updated?.role || update.role || target.role, status: updated?.status || update.status || target.status },
+      created_at: new Date(),
+    });
+  } catch (error) {
+    console.error('Membership changed but the final audit event could not be written.', error);
+    return fail('AUDIT_WRITE_FAILED', 'The permission change was saved, but its final audit event could not be recorded. Contact an administrator.', 500);
+  }
+  return NextResponse.json({ success: true, data: updated, message: 'Workspace permissions updated.' });
 }

@@ -63,4 +63,4 @@ Before production use, verify:
 7. Disabled/suspended account and membership denial across every protected API.
 8. Security-event access restrictions, backup/restore, retention, and incident response.
 
-MFA recovery codes, passkeys, device/session inventory UI, email verification, and administrator-initiated password resets are not yet implemented. Account registration is available, so configure verification and abuse protections before accepting unrestricted public signups in production.
+MFA recovery codes, passkeys, email verification, and administrator-initiated password resets are not yet implemented. Account registration is available, so configure verification and abuse protections before accepting unrestricted public signups in production.

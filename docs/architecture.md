@@ -1,26 +1,29 @@
 # MKS Register architecture
 
-## Initial foundation
+## Runtime and persistence
 
-The existing Next.js App Router application remains JavaScript/JSX. Supabase Auth provides identity and token lifecycle; Supabase PostgREST provides database access. Access and refresh tokens are stored in HTTP-only cookies. The app does not use a service-role key.
+MKS Register uses Next.js App Router and MongoDB as its only database. There is no runtime dependency on Supabase Auth, Supabase PostgREST, PostgreSQL, or database triggers. MongoDB stores identity, password hashes, sessions, tenant/workspace documents, memberships, members, services, attendance, invitations, rate-limit buckets, password-reset tokens, MFA challenges, and audit/security events.
+
+Authentication is implemented in application code: scrypt password hashes, random opaque session tokens, hashed session tokens at rest, expiring MongoDB session records, optional TOTP MFA, and single-use password-reset tokens. TOTP secrets are encrypted with `AUTH_ENCRYPTION_KEY`.
 
 ## Tenant model
 
 - A tenant is one church or organization.
-- A user may belong to multiple tenants through `tenant_memberships`.
-- Every tenant-owned record has a non-null `tenant_id`.
-- API handlers verify active membership before tenant-scoped access.
-- PostgreSQL row-level security independently checks tenant membership and role.
-- Tenant creation uses one database function to create the tenant and its initial OWNER membership together.
+- A user may belong to multiple tenants through MongoDB `memberships` documents.
+- Every tenant-owned operational record has a non-null string `tenant_id` matching the tenant ObjectId string.
+- User and membership identifiers are MongoDB ObjectIds; tenant IDs are stored as strings on tenant-owned records.
+- API handlers verify an active membership and role before access, and scope operational queries by `tenant_id`.
+- MongoDB unique and query indexes are initialized by `src/lib/mongodb/server.js`.
+- Workspace creation inserts the tenant and initial OWNER membership; if membership creation fails, the new tenant is rolled back.
 
-## Initial tables
+## Main collections
 
-`profiles`, `tenants`, `tenant_memberships`, `members`, `services`, `attendance_records`, and `audit_logs`. The migration defines relational constraints, indexes, role checks, RLS policies, tenant creation, and audit triggers. Extend these tables as features are built; do not bypass tenant boundaries.
+`users`, `sessions`, `tenants`, `memberships`, `members`, `services`, `attendance`, `invitations`, `audit_logs`, `auth_security_events`, `auth_rate_limits`, `password_resets`, and `mfa_challenges`.
 
-## Implemented vertical slice
+## Implemented workflows
 
-Sign-in, sign-out, session refresh, workspace creation/listing, and tenant-scoped member listing/creation are implemented in the initial slice. Services and attendance have database tables and policies, but their UI/API workflows are not yet complete. Member editing, invitations, imports, reports, analytics, QR check-in, and AI features are future phases.
+Account registration and sign-in, session validation and revocation, password change/recovery, TOTP enrollment and sign-in challenge, workspace creation/listing, role administration, tenant-scoped member management/import, service management, attendance recording/correction/history, invitations, and attendance reports have API and UI implementations. These workflows still require a passing CI build and live integration tests against a configured MongoDB deployment before they can be treated as production verified.
 
-## Operational boundaries
+## Migration boundary
 
-Provision initial users through Supabase Auth until the application has an audited invitation workflow. Apply migrations to a development project first and verify access with multiple users across multiple tenants before adding real member information.
+No runtime code reads the former Supabase/PostgreSQL database. Existing users, memberships, and operational records from a former deployment are not automatically migrated. Export and validate the source data, map IDs and tenant references to the MongoDB schema, and test counts, unique constraints, attendance history, and tenant isolation before cutover. Do not switch an active workspace without a verified backup and rollback plan.

@@ -31,7 +31,7 @@ export async function POST(request) {
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
   if (!membership || !INVITE_ROLES.has(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot invite users.' } }, { status: 403 });
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const role = typeof body?.role === 'string' ? body.role.toUpperCase() : 'VIEWER';
+  const role = typeof body?.role === 'string' ? body.role.toUpperCase() : 'REPORT_VIEWER';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !ASSIGNABLE_ROLES.has(role)) return NextResponse.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Provide a valid email and role (ADMIN, MANAGER, REGISTRAR, REPORT_VIEWER).' } }, { status: 400 });
   if (membership.role !== 'OWNER' && role === 'ADMIN') return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Only workspace owners can invite administrators.' } }, { status: 403 });
   try {

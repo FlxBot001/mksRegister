@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getAuthContext } from '@/lib/supabase/server';
 import { getTenantMembership } from '@/lib/auth/tenant';
+import { roleHasPermission } from '@/lib/auth/role-policy.mjs';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const WRITE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
 const fail = (error) => { const e = mongoUnavailable(error); return NextResponse.json({ success: false, error: { code: e.status === 503 ? 'DATABASE_NOT_CONFIGURED' : 'DATABASE_ERROR', message: e.message } }, { status: e.status }); };
 
 async function authorize(request, body) {
@@ -13,7 +13,7 @@ async function authorize(request, body) {
   if (!auth.user) return { response: NextResponse.json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Please sign in.' } }, { status: 401 }) };
   const tenant = request.headers.get('x-tenant-id') || new URL(request.url).searchParams.get('tenant_id') || body?.tenant_id || '';
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
-  if (!membership || !WRITE_ROLES.has(membership.role)) return { response: NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot manage services.' } }, { status: 403 }) };
+  if (!roleHasPermission(membership?.role, 'services.manage')) return { response: NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot manage services.' } }, { status: 403 }) };
   return { auth, tenant };
 }
 

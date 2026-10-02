@@ -29,7 +29,9 @@ export async function POST(request) {
     const full_name = (row[nameIndex] || '').trim().replace(/\s+/g, ' ');
     const email = emailIndex >= 0 ? (row[emailIndex] || '').trim().toLowerCase() : '';
     const phone = phoneIndex >= 0 ? (row[phoneIndex] || '').trim() : '';
-    if (full_name.length < 2 || full_name.length > 160 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || phone.length > 40) errors.push({ row: index + 2, reason: 'Invalid name, email, or phone.' });
+    const duplicateEmail = Boolean(email && seenEmails.has(email));
+    if (email) seenEmails.add(email);
+    if (full_name.length < 2 || full_name.length > 160 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || phone.length > 40 || duplicateEmail) errors.push({ row: index + 2, reason: duplicateEmail ? 'Duplicate email in this import.' : 'Invalid name, email, or phone.' });
     else valid.push({ tenant_id: tenant, full_name, email: email || null, email_normalized: email || undefined, phone: phone || null, membership_status: 'ACTIVE', created_by: auth.user.id, created_at: new Date(), deleted_at: null });
   });
   if (errors.length) return NextResponse.json({ success: false, error: { code: 'IMPORT_VALIDATION_FAILED', message: 'No records were imported because some rows are invalid.', rows: errors.slice(0, 100) } }, { status: 400 });

@@ -60,5 +60,8 @@ export async function POST(request) {
     const result = await db.collection('attendance').insertOne(record);
     await db.collection('audit_logs').insertOne({ tenant_id: tenant, actor_id: auth.user.id, action: 'attendance.recorded', entity_type: 'attendance', entity_id: result.insertedId.toString(), created_at: now });
     return NextResponse.json({ success: true, data: { id: result.insertedId.toString(), member_id: member._id.toString(), member_name: member.full_name, service_id: service._id.toString(), service_name: service.name, status, notes, recorded_at: recordedAt } }, { status: 201 });
-  } catch (error) { return fail(error); }
+  } catch (error) {
+    if (error?.code === 11000) return NextResponse.json({ success: false, error: { code: 'ATTENDANCE_ALREADY_RECORDED', message: 'Attendance has already been recorded for this member and service.' } }, { status: 409 });
+    return fail(error);
+  }
 }

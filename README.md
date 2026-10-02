@@ -4,7 +4,9 @@ MKS Register is a multi-tenant registration and attendance application built wit
 
 ## Architecture
 
-- Supabase Auth manages sign-in and session refresh.
+- Supabase Auth manages password verification, sign-in, session refresh, password recovery, and password changes.
+- Access/refresh tokens are stored in HTTP-only cookies; dashboard pages verify the session before rendering private content.
+- Login attempts are persistently throttled and hashed security events are recorded in MongoDB; account security includes local sign-out and global session-revocation requests.
 - Supabase tenant memberships remain the authorization source for workspace membership and roles.
 - MongoDB stores tenant-scoped members, services, attendance events, invitations, and audit records.
 - Server-side API handlers validate active workspace membership and scope every MongoDB query by tenant_id.
@@ -18,7 +20,7 @@ This is a transitional hybrid architecture, not a Mongo-only architecture. Authe
 2. Configure SUPABASE_URL and SUPABASE_ANON_KEY. Configure SUPABASE_SERVICE_ROLE_KEY as a server-only secret for invitation acceptance and one-time administrator provisioning. Never expose it through a NEXT_PUBLIC_ variable.
 3. Create a MongoDB Atlas cluster and a dedicated least-privilege database user. Restrict network access to your deployment provider where possible.
 4. Set MONGODB_URI and MONGODB_DB_NAME. URL-encode special characters in the MongoDB username/password.
-5. Set APP_BASE_URL to the canonical app origin for invitation links.
+5. Set APP_BASE_URL to the canonical HTTPS app origin for invitation and password-reset links. Add `/reset-password` for that origin to Supabase Auth's allowed redirect URLs and configure the recovery email template/provider.
 6. For initial administrator setup, set the ADMIN_* values privately in the execution environment and run npm run bootstrap:admin. The script verifies MongoDB, creates or reuses the Supabase Auth user, creates or resolves the workspace, and grants OWNER membership. Never commit a real administrator password; remove it from the shell after setup.
 7. Remove ADMIN_* bootstrap variables from the deployment runtime after provisioning.
 8. Run npm install, npm test, npm run lint, and npm run dev.
@@ -37,10 +39,15 @@ All routes require authentication and the relevant active tenant membership. Sup
 - PATCH /api/v1/attendance/:attendanceId — correct an attendance record with an audit entry.
 - GET /api/v1/attendance/history?member_id=... — individual attendance history.
 - GET /api/v1/reports/attendance?from=...&to=... — summary, service, and daily aggregates.
+- POST /api/v1/auth/login, GET /api/v1/auth/session, POST /api/v1/auth/logout, POST /api/v1/auth/revoke-sessions, POST /api/v1/auth/recover, and POST /api/v1/auth/reset-password — sign-in, session validation, sign-out, global revocation, and password recovery/reset.
 - GET/POST /api/v1/invitations and POST /api/v1/invitations/accept — create, list, and accept invitations.
 - GET/PATCH /api/v1/tenants/:tenantId/memberships — role and membership status administration.
 
 Attendance statuses are PRESENT, ABSENT, LATE, and EXCUSED. Invitation links expire after seven days and must be accepted by a signed-in account whose email matches the invited address. Invitation acceptance requires the server-only Supabase service-role secret. Invitation links can be shared manually; no email delivery provider is configured.
+
+## Authentication behavior and limitations
+
+See [authentication and session lifecycle](docs/security/authentication.md) for cookie lifetimes, login throttling, recovery configuration, global revocation, and operational verification. Multi-factor authentication enrollment/challenge UI and provider-wide device-session inventory are not yet implemented; do not assume MFA is active unless it is configured and verified with the identity provider.
 
 ## Tests and deployment status
 

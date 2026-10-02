@@ -1,5 +1,5 @@
 import 'server-only';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const URI = process.env.MONGODB_URI?.trim();
 const DB_NAME = process.env.MONGODB_DB_NAME?.trim();
@@ -38,7 +38,6 @@ export function isValidObjectId(value) {
 
 export function toObjectId(value) {
   if (!isValidObjectId(value)) return null;
-  const { ObjectId } = require('mongodb');
   return new ObjectId(value);
 }
 

@@ -4,7 +4,8 @@ import { MongoClient, ObjectId } from 'mongodb';
 const URI = process.env.MONGODB_URI?.trim();
 const DB_NAME = process.env.MONGODB_DB_NAME?.trim();
 
-let clientPromise;\nlet indexPromise;
+let clientPromise;
+let indexPromise;
 
 export async function getDatabase() {
   if (!URI || !DB_NAME) throw new Error('MongoDB is not configured. Set MONGODB_URI and MONGODB_DB_NAME.');
@@ -21,14 +22,21 @@ export async function getDatabase() {
   }
   const client = await clientPromise;
   const db = client.db(DB_NAME);
-  await Promise.all([
-    db.collection('services').createIndex({ tenant_id: 1, name_normalized: 1 }, { unique: true, partialFilterExpression: { deleted_at: null } }),
-    db.collection('members').createIndex({ tenant_id: 1, email_normalized: 1 }, { unique: true, partialFilterExpression: { email_normalized: { $type: 'string' }, deleted_at: null } }),
-    db.collection('attendance').createIndex({ tenant_id: 1, member_id: 1, recorded_at: -1 }),
-    db.collection('attendance').createIndex({ tenant_id: 1, service_id: 1, recorded_at: -1 }),\n    db.collection('attendance').createIndex({ tenant_id: 1, service_id: 1, member_id: 1 }, { unique: true }),
-    db.collection('invitations').createIndex({ tenant_id: 1, email_normalized: 1, status: 1 }),
-    db.collection('audit_logs').createIndex({ tenant_id: 1, created_at: -1 }),
-  ]);
+  if (!indexPromise) {
+    indexPromise = Promise.all([
+      db.collection('services').createIndex({ tenant_id: 1, name_normalized: 1 }, { unique: true, partialFilterExpression: { deleted_at: null } }),
+      db.collection('members').createIndex({ tenant_id: 1, email_normalized: 1 }, { unique: true, partialFilterExpression: { email_normalized: { $type: 'string' }, deleted_at: null } }),
+      db.collection('attendance').createIndex({ tenant_id: 1, member_id: 1, recorded_at: -1 }),
+      db.collection('attendance').createIndex({ tenant_id: 1, service_id: 1, recorded_at: -1 }),
+      db.collection('attendance').createIndex({ tenant_id: 1, service_id: 1, member_id: 1 }, { unique: true }),
+      db.collection('invitations').createIndex({ tenant_id: 1, email_normalized: 1, status: 1 }),
+      db.collection('audit_logs').createIndex({ tenant_id: 1, created_at: -1 }),
+    ]).catch((error) => {
+      indexPromise = undefined;
+      throw error;
+    });
+  }
+  await indexPromise;
   return db;
 }
 

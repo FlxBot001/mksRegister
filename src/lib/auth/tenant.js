@@ -1,10 +1,5 @@
 import { supabaseFetch } from '@/lib/supabase/server';
-
-const MEMBER_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS']);
-const MEMBER_WRITE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'REGISTRAR']);
-const ATTENDANCE_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
-const ATTENDANCE_WRITE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
-const REPORT_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER']);
+import { roleHasPermission } from '@/lib/auth/role-policy.mjs';
 
 export async function getTenantMembership(accessToken, userId, tenantId) {
   if (!tenantId || !userId) return null;
@@ -15,22 +10,22 @@ export async function getTenantMembership(accessToken, userId, tenantId) {
 }
 
 export function canReadMembers(membership) {
-  return Boolean(membership && MEMBER_READ_ROLES.has(membership.role));
+  return roleHasPermission(membership?.role, 'members.read');
 }
 
 export function canReadAttendance(membership) {
-  return Boolean(membership && ATTENDANCE_READ_ROLES.has(membership.role));
+  return roleHasPermission(membership?.role, 'attendance.read');
 }
 
 export function canRecordAttendance(membership) {
-  return Boolean(membership && ATTENDANCE_WRITE_ROLES.has(membership.role));
+  return roleHasPermission(membership?.role, 'attendance.create');
 }
 
 export function canReadReports(membership) {
-  return Boolean(membership && REPORT_READ_ROLES.has(membership.role));
+  return roleHasPermission(membership?.role, 'reports.read');
 }
 
 export async function canManageMembers(accessToken, userId, tenantId) {
   const membership = await getTenantMembership(accessToken, userId, tenantId);
-  return membership && MEMBER_WRITE_ROLES.has(membership.role) ? membership : null;
+  return membership && roleHasPermission(membership.role, 'members.create') ? membership : null;
 }

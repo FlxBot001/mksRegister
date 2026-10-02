@@ -6,7 +6,7 @@ import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
 const INVITE_ROLES = new Set(['ADMIN', 'MANAGER', 'OWNER']);
-const ASSIGNABLE_ROLES = new Set(['ADMIN', 'MANAGER', 'REGISTRAR', 'REPORT_VIEWER']);
+const ASSIGNABLE_ROLES = new Set(['ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER']);
 
 export async function GET(request) {
   const auth = await getAuthContext();
@@ -32,8 +32,8 @@ export async function POST(request) {
   if (!membership || !INVITE_ROLES.has(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot invite users.' } }, { status: 403 });
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
   const role = typeof body?.role === 'string' ? body.role.toUpperCase() : 'REPORT_VIEWER';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !ASSIGNABLE_ROLES.has(role)) return NextResponse.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Provide a valid email and role (ADMIN, MANAGER, REGISTRAR, REPORT_VIEWER).' } }, { status: 400 });
-  if (membership.role !== 'OWNER' && role === 'ADMIN') return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Only workspace owners can invite administrators.' } }, { status: 403 });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !ASSIGNABLE_ROLES.has(role)) return NextResponse.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Provide a valid email address and an assignable workspace role.' } }, { status: 400 });
+  if (membership.role !== 'OWNER' && ['ADMIN', 'MANAGEMENT'].includes(role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Only workspace owners can invite administrators or management.' } }, { status: 403 });
   try {
     const db = await getDatabase();
     const existing = await db.collection('invitations').findOne({ tenant_id: tenant, email_normalized: email, status: 'PENDING', expires_at: { $gt: new Date() } });

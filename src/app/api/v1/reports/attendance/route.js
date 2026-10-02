@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/supabase/server';
-import { getTenantMembership } from '@/lib/auth/tenant';
+import { canReadReports, getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,9 @@ export async function GET(request) {
   if (!auth.user) return NextResponse.json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Please sign in.' } }, { status: 401 });
   const url = new URL(request.url);
   const tenant = request.headers.get('x-tenant-id') || url.searchParams.get('tenant_id') || '';
-  if (!await getTenantMembership(auth.accessToken, auth.user.id, tenant)) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
+  if (!membership) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  if (!canReadReports(membership)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot view attendance reports.' } }, { status: 403 });
   const to = url.searchParams.get('to') ? new Date(url.searchParams.get('to')) : new Date();
   const from = url.searchParams.get('from') ? new Date(url.searchParams.get('from')) : new Date(to.getTime() - 30 * 86400000);
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) return NextResponse.json({ success: false, error: { code: 'INVALID_DATE_RANGE', message: 'Provide a valid date range with from before to.' } }, { status: 400 });

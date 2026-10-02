@@ -38,7 +38,7 @@ export default function ForgotPasswordForm() {
       <div className='rounded-2xl border border-emerald-200 bg-emerald-50 p-5' role='status'>
         <span className='grid size-10 place-items-center rounded-full bg-white text-emerald-800'><CheckCircle2 size={22} aria-hidden='true' /></span>
         <h3 className='mt-4 font-semibold text-emerald-950'>Check your inbox</h3>
-        <p className='mt-2 text-sm leading-6 text-emerald-900/80'>If an account matches <span className='font-semibold'>{email}</span>, password-reset instructions will be sent. Check your spam folder too.</p>
+        <p className='mt-2 text-sm leading-6 text-emerald-900/80'>If an account matches <span className='font-semibold'>{email}</span>, password-reset instructions will be sent if email delivery is configured. Check your spam folder too.</p>
         <button type='button' onClick={() => setSent(false)} className='mt-4 text-sm font-semibold text-emerald-900 underline underline-offset-4'>Try another email</button>
         <Link href='/login' className='mt-4 block text-sm font-semibold text-slate-700 hover:text-emerald-800'>Return to sign in</Link>
       </div>

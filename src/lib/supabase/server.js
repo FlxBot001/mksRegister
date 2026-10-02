@@ -15,16 +15,21 @@ export function getSupabaseConfig() {
 export async function supabaseFetch(path, accessToken, options = {}) {
   const config = getSupabaseConfig();
   if (config.error) return { ok: false, status: 503, data: { message: config.error } };
-  const response = await fetch(`${config.url}${path}`, {
-    ...options,
-    cache: 'no-store',
-    headers: {
-      apikey: config.anonKey,
-      Authorization: `Bearer ${accessToken || config.anonKey}`,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {}),
-    },
-  });
+  let response;
+  try {
+    response = await fetch(`${config.url}${path}`, {
+      ...options,
+      cache: 'no-store',
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${accessToken || config.anonKey}`,
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch {
+    return { ok: false, status: 503, data: { message: 'The authentication service is temporarily unavailable.' } };
+  }
   const raw = await response.text();
   let data = null;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = { message: 'The data service returned an unexpected response.' }; }
@@ -48,13 +53,20 @@ export async function getAuthContext({ refresh = true } = {}) {
   if (accessToken) {
     const current = await supabaseFetch('/auth/v1/user', accessToken);
     if (current.ok && current.data?.id) return { user: current.data, accessToken, error: null };
+    if (current.status >= 500) return { user: null, accessToken: null, error: 'The authentication service is temporarily unavailable. Please try again.' };
   }
   if (!refresh || !refreshToken) return { user: null, accessToken: null, error: 'Your session has expired. Please sign in again.' };
 
-  const refreshed = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
-    method: 'POST', cache: 'no-store', headers: { apikey: config.anonKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
+  let refreshed;
+  try {
+    refreshed = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST', cache: 'no-store', headers: { apikey: config.anonKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+  } catch {
+    return { user: null, accessToken: null, error: 'The authentication service is temporarily unavailable. Please try again.' };
+  }
+  if (refreshed.status >= 500) return { user: null, accessToken: null, error: 'The authentication service is temporarily unavailable. Please try again.' };
   const raw = await refreshed.text();
   let session = null;
   try { session = raw ? JSON.parse(raw) : null; } catch { session = null; }

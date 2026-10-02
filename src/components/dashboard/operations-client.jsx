@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ClipboardList, FileBarChart2, LoaderCircle, MailPlus, RefreshCw, ShieldCheck, UsersRound, Wrench } from 'lucide-react';
 
+const MEMBER_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS']);
+
 const TABS = [
   { id: 'services', label: 'Services', icon: Wrench },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardList, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'] },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardList, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER'] },
   { id: 'reports', label: 'Reports', icon: FileBarChart2, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'] },
   { id: 'invitations', label: 'Invitations', icon: MailPlus, roles: ['OWNER', 'ADMIN', 'MANAGER'] },
   { id: 'permissions', label: 'Permissions', icon: ShieldCheck, roles: ['OWNER', 'ADMIN'] },
@@ -51,10 +53,10 @@ export default function OperationsClient() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const loadCore = useCallback(async (id) => {
+  const loadCore = useCallback(async (id, allowMemberRead = true) => {
     if (!id) return;
     const q = new URLSearchParams({ tenant_id: id });
-    const [m, s] = await Promise.all([api('/api/v1/members?' + q), api('/api/v1/services?' + q)]);
+    const [m, s] = await Promise.all([allowMemberRead ? api('/api/v1/members?' + q) : Promise.resolve([]), api('/api/v1/services?' + q)]);
     setMembers(m); setServices(s);
     setMemberId((prev) => m.some((x) => x.id === prev) ? prev : m[0]?.id || '');
     setServiceId((prev) => s.some((x) => x.id === prev) ? prev : s[0]?.id || '');
@@ -78,8 +80,9 @@ export default function OperationsClient() {
         if (!active) return;
         setTenants(list);
         const id = list[0]?.id || '';
+        const selectedRole = list[0]?.role || '';
         setTenantId(id);
-        if (id) { await loadCore(id); await loadTab(id, 'services'); }
+        if (id) { await loadCore(id, MEMBER_READ_ROLES.has(selectedRole)); await loadTab(id, 'services'); }
       } catch (e) {
         if (/sign in|session|unauthenticated/i.test(e.message)) router.replace('/login');
         else setError(e.message);
@@ -169,7 +172,7 @@ export default function OperationsClient() {
     <header className='border-b border-slate-200 bg-white'><div className='mx-auto flex min-h-[72px] max-w-6xl items-center justify-between px-4 sm:px-7'><Link href='/dashboard' className='inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-emerald-800'><ArrowLeft size={17} /> Back to members</Link><span className='font-semibold'>MKS Register · Operations</span><button type='button' onClick={refresh} className='inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold'><RefreshCw size={15} /> Refresh</button></div></header>
     <div className='mx-auto max-w-6xl px-4 py-8 sm:px-7'>
       <p className='text-sm font-semibold text-emerald-800'>WORKSPACE TOOLS</p><h1 className='mt-2 text-3xl font-semibold tracking-tight'>Operations and reporting</h1><p className='mt-2 text-sm text-slate-500'>Manage services, record attendance, invite staff, import members and review attendance summaries.</p>
-      {tenants.length > 0 && <label className='mt-6 block max-w-xl'><span className='mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500'>Workspace</span><select className={inputClass} value={tenantId} onChange={async (e) => { const id = e.target.value; setTenantId(id); setTab('services'); setError(''); setHistory(null); try { await loadCore(id); await loadTab(id); } catch (err) { setError(err.message); } }} >{tenants.map((t) => <option key={t.id} value={t.id}>{t.name} · {t.role}</option>)}</select></label>}
+      {tenants.length > 0 && <label className='mt-6 block max-w-xl'><span className='mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500'>Workspace</span><select className={inputClass} value={tenantId} onChange={async (e) => { const id = e.target.value; setTenantId(id); setTab('services'); setError(''); setHistory(null); try { await loadCore(id, MEMBER_READ_ROLES.has(tenants.find((item) => item.id === id)?.role)); await loadTab(id); } catch (err) { setError(err.message); } }} >{tenants.map((t) => <option key={t.id} value={t.id}>{t.name} · {t.role}</option>)}</select></label>}
       {error && <div role='alert' className='mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-800'>{error}</div>}
       {message && <div role='status' className='mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-sm text-emerald-900'>{message}</div>}
       {loading && <div className='mt-6 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500'><LoaderCircle className='animate-spin' size={20} /> Loading workspace…</div>}

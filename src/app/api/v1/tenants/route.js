@@ -18,6 +18,7 @@ export async function POST(request) {
   if (!context.user) return NextResponse.json({ success: false, error: { code: 'UNAUTHENTICATED', message: context.error || 'Please sign in.' } }, { status: 401 });
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Send valid JSON.' } }, { status: 400 }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ success: false, error: { code: 'INVALID_BODY', message: 'Request body must be a JSON object.' } }, { status: 400 });
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const slug = typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : '';
   if (name.length < 2 || name.length > 120 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 70) {

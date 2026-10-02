@@ -26,6 +26,7 @@ export async function POST(request) {
   if (!context.user) return NextResponse.json({ success: false, error: { code: 'UNAUTHENTICATED', message: context.error || 'Please sign in.' } }, { status: 401 });
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Send valid JSON.' } }, { status: 400 }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ success: false, error: { code: 'INVALID_BODY', message: 'Request body must be a JSON object.' } }, { status: 400 });
   const tenantId = requestedTenant(request, body);
   if (!await canManageMembers(context.accessToken, context.user.id, tenantId)) {
     return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your workspace role does not allow you to add members.' } }, { status: 403 });

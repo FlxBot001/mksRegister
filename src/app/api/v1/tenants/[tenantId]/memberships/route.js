@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext, supabaseFetch } from '@/lib/supabase/server';
 import { getTenantMembership } from '@/lib/auth/tenant';
+import { roleHasPermission, ROLE_NAMES } from '@/lib/auth/role-policy.mjs';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const ASSIGNABLE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER']);
+const ASSIGNABLE_ROLES = new Set(ROLE_NAMES);
 const STATUSES = new Set(['ACTIVE', 'SUSPENDED', 'REMOVED', 'INVITED']);
 const fail = (code, message, status) => NextResponse.json({ success: false, error: { code, message } }, { status });
 
@@ -12,7 +13,7 @@ async function authorize(request, tenantId) {
   const auth = await getAuthContext();
   if (!auth.user) return { response: fail('UNAUTHENTICATED', 'Please sign in.', 401) };
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenantId);
-  if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) return { response: fail('PERMISSION_DENIED', 'Only workspace owners and administrators can manage permissions.', 403) };
+  if (!membership || !roleHasPermission(membership.role, 'roles.manage')) return { response: fail('PERMISSION_DENIED', 'Only workspace owners and administrators can manage permissions.', 403) };
   return { auth, membership, tenantId };
 }
 

@@ -24,7 +24,16 @@ export async function getDatabase() {
   const db = client.db(DB_NAME);
   if (!indexPromise) {
     indexPromise = Promise.all([
-      db.collection('services').createIndex({ tenant_id: 1, name_normalized: 1 }, { unique: true, partialFilterExpression: { deleted_at: null } }),
+      db.collection('users').createIndex({ email_normalized: 1 }, { unique: true }),
+      db.collection('sessions').createIndex({ token_hash: 1 }, { unique: true }),
+      db.collection('sessions').createIndex({ user_id: 1, revoked_at: 1, expires_at: 1 }),
+      db.collection('sessions').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 }),
+      db.collection('tenants').createIndex({ slug_normalized: 1 }, { unique: true }),
+      db.collection('memberships').createIndex({ tenant_id: 1, user_id: 1 }, { unique: true }),
+      db.collection('memberships').createIndex({ user_id: 1, status: 1 }),
+      db.collection('password_resets').createIndex({ token_hash: 1 }, { unique: true }),
+      db.collection('password_resets').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 }),
+      db.collection('users').createIndex({ tenant_id: 1, name_normalized: 1 }, { unique: true, partialFilterExpression: { deleted_at: null } }),
       db.collection('members').createIndex({ tenant_id: 1, email_normalized: 1 }, { unique: true, partialFilterExpression: { email_normalized: { $type: 'string' }, deleted_at: null } }),
       db.collection('attendance').createIndex({ tenant_id: 1, member_id: 1, recorded_at: -1 }),
       db.collection('attendance').createIndex({ tenant_id: 1, service_id: 1, recorded_at: -1 }),

@@ -38,11 +38,11 @@ export async function beginLoginAttempt(request, email) {
   return { limited: false };
 }
 
-export async function recordLoginAttempt(request, email, { success, reason, userId } = {}) {
+export async function recordLoginAttempt(request, email, { success, reason, userId, eventType } = {}) {
   const db = await getDatabase();
   const address = getClientAddress(request);
   await db.collection('auth_security_events').insertOne({
-    event_type: success ? 'login_succeeded' : 'login_failed',
+    event_type: eventType || (success ? 'login_succeeded' : 'login_failed'),
     email_hash: digest(String(email || '').trim().toLowerCase()),
     user_id: typeof userId === 'string' ? userId : null,
     ip_hash: digest(address),

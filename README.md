@@ -40,6 +40,7 @@ All routes require authentication and the relevant active tenant membership. Sup
 - GET /api/v1/attendance/history?member_id=... — individual attendance history.
 - GET /api/v1/reports/attendance?from=...&to=... — summary, service, and daily aggregates.
 - POST /api/v1/auth/login, GET /api/v1/auth/session, POST /api/v1/auth/logout, POST /api/v1/auth/revoke-sessions, POST /api/v1/auth/recover, and POST /api/v1/auth/reset-password — sign-in, session validation, sign-out, global revocation, and password recovery/reset.
+- POST /api/v1/auth/mfa-enroll, POST /api/v1/auth/mfa-enroll-verify, GET /api/v1/auth/mfa-factors, POST /api/v1/auth/mfa-unenroll, and POST /api/v1/auth/mfa-verify — TOTP authenticator enrollment, verification, listing/removal, and sign-in challenges.
 - GET/POST /api/v1/invitations and POST /api/v1/invitations/accept — create, list, and accept invitations.
 - GET/PATCH /api/v1/tenants/:tenantId/memberships — role and membership status administration.
 

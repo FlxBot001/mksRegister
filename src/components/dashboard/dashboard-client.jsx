@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, CircleAlert, Fingerprint, LoaderCircle, LogOut, Plus, Search, UsersRound } from 'lucide-react';
 
@@ -97,7 +98,7 @@ export default function DashboardClient() {
   return (
     <main className='min-h-screen flex-1 bg-[#f6f8f7] text-slate-950'>
       <header className='sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur'><div className='mx-auto flex min-h-[72px] max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-7'>
-        <a href='/' className='flex min-w-0 items-center gap-3'><span className='grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-800 text-white'><Fingerprint size={21} aria-hidden='true' /></span><span><span className='block text-base font-semibold tracking-tight'>MKS Register</span><span className='hidden text-xs text-slate-500 sm:block'>Church operations</span></span></a>
+        <Link href='/' className='flex min-w-0 items-center gap-3'><span className='grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-800 text-white'><Fingerprint size={21} aria-hidden='true' /></span><span><span className='block text-base font-semibold tracking-tight'>MKS Register</span><span className='hidden text-xs text-slate-500 sm:block'>Church operations</span></span></Link>
         <div className='flex items-center gap-3'>{user?.email ? <span className='hidden max-w-48 truncate text-sm text-slate-500 sm:block'>{user.email}</span> : null}<button type='button' onClick={signOut} disabled={saving} className='inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60'><LogOut size={16} aria-hidden='true' /><span className='hidden sm:inline'>Sign out</span></button></div>
       </div></header>
 

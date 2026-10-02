@@ -7,7 +7,7 @@ export async function POST(request, { params }) {
   const { action } = await params;
 
   if (action === 'logout') {
-    const context = await getAuthContext({ refresh: false });
+    const context = await getAuthContext();
     if (context.accessToken) await supabaseFetch('/auth/v1/logout', context.accessToken, { method: 'POST' }).catch(() => null);
     await clearSessionCookies();
     return NextResponse.json({ success: true, data: null, message: 'Signed out.' });

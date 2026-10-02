@@ -12,9 +12,6 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_URL: https://build-check.supabase.co
-      SUPABASE_ANON_KEY: build-only-placeholder
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

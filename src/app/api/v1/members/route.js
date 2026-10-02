@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/supabase/server';
-import { canManageMembers, getTenantMembership } from '@/lib/auth/tenant';
+import { canManageMembers, canReadMembers, getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,9 @@ export async function GET(request) {
   const auth = await getAuthContext();
   if (!auth.user) return NextResponse.json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Please sign in.' } }, { status: 401 });
   const tenant = tenantId(request);
-  if (!await getTenantMembership(auth.accessToken, auth.user.id, tenant)) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
+  if (!membership) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  if (!canReadMembers(membership)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot view the member directory.' } }, { status: 403 });
   const url = new URL(request.url);
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 200);
   const search = (url.searchParams.get('q') || '').trim().slice(0, 100);

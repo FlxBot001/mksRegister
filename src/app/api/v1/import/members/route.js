@@ -24,7 +24,7 @@ export async function POST(request) {
   const phoneIndex = headers.indexOf('phone');
   if (nameIndex < 0) return NextResponse.json({ success: false, error: { code: 'MISSING_HEADER', message: 'CSV must include a full_name column; email and phone are optional.' } }, { status: 400 });
   if (rows.length > 1001) return NextResponse.json({ success: false, error: { code: 'IMPORT_TOO_LARGE', message: 'Import at most 1000 members at a time.' } }, { status: 400 });
-  const valid = [], errors = [];
+  const valid = [], errors = [], seenEmails = new Set();
   rows.slice(1).forEach((row, index) => {
     const full_name = (row[nameIndex] || '').trim().replace(/\s+/g, ' ');
     const email = emailIndex >= 0 ? (row[emailIndex] || '').trim().toLowerCase() : '';
@@ -35,7 +35,12 @@ export async function POST(request) {
   if (errors.length) return NextResponse.json({ success: false, error: { code: 'IMPORT_VALIDATION_FAILED', message: 'No records were imported because some rows are invalid.', rows: errors.slice(0, 100) } }, { status: 400 });
   try {
     const db = await getDatabase();
-    const result = await db.collection('members').insertMany(valid, { ordered: false });
+    const emails = valid.map((member) => member.email_normalized).filter(Boolean);
+    if (emails.length) {
+      const existing = await db.collection('members').find({ tenant_id: tenant, email_normalized: { $in: emails }, deleted_at: null }, { projection: { email_normalized: 1 } }).limit(1001).toArray();
+      if (existing.length) return NextResponse.json({ success: false, error: { code: 'DUPLICATE_MEMBER', message: 'One or more imported emails already exist in this workspace; resolve duplicates and retry.' } }, { status: 409 });
+    }
+    const result = await db.collection('members').insertMany(valid, { ordered: true });
     await db.collection('audit_logs').insertOne({ tenant_id: tenant, actor_id: auth.user.id, action: 'members.imported', entity_type: 'member_import', entity_id: result.insertedIds[0]?.toString() || '', details: { count: result.insertedCount }, created_at: new Date() });
     return NextResponse.json({ success: true, data: { imported: result.insertedCount, rejected: 0 }, message: 'Member import completed.' }, { status: 201 });
   } catch (error) {

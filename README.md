@@ -18,7 +18,7 @@ This is a transitional hybrid architecture, not a Mongo-only architecture. Authe
 
 1. Copy .env.example to .env.local.
 2. Configure SUPABASE_URL and SUPABASE_ANON_KEY. Configure SUPABASE_SERVICE_ROLE_KEY as a server-only secret for invitation acceptance and one-time administrator provisioning. Never expose it through a NEXT_PUBLIC_ variable.
-3. Create a MongoDB Atlas cluster and a dedicated least-privilege database user. Restrict network access to your deployment provider where possible.
+3. Create a MongoDB Atlas cluster and a dedicated least-privilege database user. Restrict network access to your deployment provider where possible. Configure `AUTH_AUDIT_HASH_SECRET` with a cryptographically random secret of at least 32 characters; do not reuse a public API key.
 4. Set MONGODB_URI and MONGODB_DB_NAME. URL-encode special characters in the MongoDB username/password.
 5. Set APP_BASE_URL to the canonical HTTPS app origin for invitation and password-reset links. Add `/reset-password` for that origin to Supabase Auth's allowed redirect URLs and configure the recovery email template/provider.
 6. For initial administrator setup, set the ADMIN_* values privately in the execution environment and run npm run bootstrap:admin. The script verifies MongoDB, creates or reuses the Supabase Auth user, creates or resolves the workspace, and grants OWNER membership. Never commit a real administrator password; remove it from the shell after setup.

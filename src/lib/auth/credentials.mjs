@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual, createHmac } from 'node:crypto';
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual, createHmac, createCipheriv, createDecipheriv } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scrypt = promisify(scryptCallback);
@@ -75,7 +75,6 @@ export function totpUri(secret, email) {
 export function encryptSecret(value) {
   const keyText = process.env.AUTH_ENCRYPTION_KEY?.trim();
   if (!keyText || keyText.length < 32) throw new Error('AUTH_ENCRYPTION_KEY must be configured with at least 32 characters.');
-  const { createCipheriv } = require('node:crypto');
   const key = createHash('sha256').update(keyText).digest();
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
@@ -86,7 +85,6 @@ export function encryptSecret(value) {
 export function decryptSecret(value) {
   const keyText = process.env.AUTH_ENCRYPTION_KEY?.trim();
   if (!keyText || keyText.length < 32) throw new Error('AUTH_ENCRYPTION_KEY must be configured with at least 32 characters.');
-  const { createDecipheriv } = require('node:crypto');
   const [ivText, tagText, encryptedText] = String(value).split('.');
   const key = createHash('sha256').update(keyText).digest();
   const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivText, 'base64url'));

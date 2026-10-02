@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthContext } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth/server';
 import { canManageMembers } from '@/lib/auth/tenant';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 import { parseCsv } from '@/lib/csv/parse';

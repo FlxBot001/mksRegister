@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getAuthContext } from '@/lib/supabase/server';
-import { canManageMembers } from '@/lib/auth/tenant';
+import { canManageMembers, getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
@@ -10,8 +10,9 @@ async function authorize(request, body) {
   const auth = await getAuthContext();
   if (!auth.user) return { response: NextResponse.json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Please sign in.' } }, { status: 401 }) };
   const tenant = request.headers.get('x-tenant-id') || new URL(request.url).searchParams.get('tenant_id') || body?.tenant_id || '';
-  if (!await canManageMembers(auth.accessToken, auth.user.id, tenant)) return { response: NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot manage members.' } }, { status: 403 }) };
-  return { auth, tenant };
+  const membership = await canManageMembers(auth.accessToken, auth.user.id, tenant);
+  if (!membership) return { response: NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot manage members.' } }, { status: 403 }) };
+  return { auth, tenant, membership };
 }
 function fail(error) { const e = mongoUnavailable(error); return NextResponse.json({ success: false, error: { code: e.status === 503 ? 'DATABASE_NOT_CONFIGURED' : 'DATABASE_ERROR', message: e.message } }, { status: e.status }); }
 
@@ -53,12 +54,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   const access = await authorize(request, null);
   if (access.response) return access.response;
-  if (!['OWNER', 'ADMIN'].includes(access.membership?.role) && !['OWNER', 'ADMIN'].includes(access.role)) {
-    // The shared helper returns a boolean-like membership check; explicitly check the role below.
-    const { getTenantMembership } = await import('@/lib/auth/tenant');
-    const membership = await getTenantMembership(access.auth.accessToken, access.auth.user.id, access.tenant);
-    if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Only owners and administrators can archive members.' } }, { status: 403 });
-  }
+  if (!['OWNER', 'ADMIN'].includes(access.membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Only owners and administrators can archive members.' } }, { status: 403 });
   const { memberId } = await params;
   if (!isValidObjectId(memberId)) return NextResponse.json({ success: false, error: { code: 'INVALID_ID', message: 'Invalid member ID.' } }, { status: 400 });
   try {

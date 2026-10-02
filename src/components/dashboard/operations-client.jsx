@@ -164,9 +164,9 @@ export default function OperationsClient() {
   const visibleTabs = TABS.filter((item) => !item.roles || item.roles.includes(role));
   const canManageServices = ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT'].includes(role);
   const canRecordAttendance = ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'REGISTRAR', 'ATTENDANCE_OFFICER'].includes(role);
-  const inviteRoles = role === 'OWNER' ? ['REPORT_VIEWER', 'REGISTRAR', 'MANAGER', 'ADMIN'] : ['REPORT_VIEWER', 'REGISTRAR', 'MANAGER'];
-  const allPermissionRoles = ['OWNER', 'ADMIN', 'MANAGER', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER'];
-  const permissionRoles = role === 'OWNER' ? allPermissionRoles : allPermissionRoles.filter((item) => !['OWNER', 'ADMIN'].includes(item));
+  const inviteRoles = role === 'OWNER' ? ['REPORT_VIEWER', 'VOLUNTEER', 'MEMBER', 'COMMUNICATIONS', 'ATTENDANCE_OFFICER', 'REGISTRAR', 'GROUP_LEADER', 'MINISTRY_LEADER', 'PASTOR', 'MANAGER', 'MANAGEMENT', 'ADMIN'] : ['REPORT_VIEWER', 'VOLUNTEER', 'MEMBER', 'COMMUNICATIONS', 'ATTENDANCE_OFFICER', 'REGISTRAR', 'GROUP_LEADER', 'MINISTRY_LEADER', 'PASTOR', 'MANAGER'];
+  const allPermissionRoles = ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER'];
+  const permissionRoles = role === 'OWNER' ? allPermissionRoles : allPermissionRoles.filter((item) => !['OWNER', 'ADMIN', 'MANAGEMENT'].includes(item));
 
   return <main className='min-h-screen bg-[#f6f8f7] text-slate-950'>
     <header className='border-b border-slate-200 bg-white'><div className='mx-auto flex min-h-[72px] max-w-6xl items-center justify-between px-4 sm:px-7'><Link href='/dashboard' className='inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-emerald-800'><ArrowLeft size={17} /> Back to members</Link><span className='font-semibold'>MKS Register · Operations</span><button type='button' onClick={refresh} className='inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold'><RefreshCw size={15} /> Refresh</button></div></header>

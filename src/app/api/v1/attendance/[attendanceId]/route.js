@@ -5,7 +5,7 @@ import { getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const EDIT_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR']);
+const EDIT_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
 const fail = (error) => { const e = mongoUnavailable(error); return NextResponse.json({ success: false, error: { code: e.status === 503 ? 'DATABASE_NOT_CONFIGURED' : 'DATABASE_ERROR', message: e.message } }, { status: e.status }); };
 
 export async function PATCH(request, { params }) {

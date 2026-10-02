@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ClipboardList, FileBarChart2, LoaderCircle, MailPlus, RefreshCw, UsersRound, Wrench } from 'lucide-react';
+import { ArrowLeft, ClipboardList, FileBarChart2, LoaderCircle, MailPlus, RefreshCw, ShieldCheck, UsersRound, Wrench } from 'lucide-react';
 
 const TABS = [
   { id: 'services', label: 'Services', icon: Wrench },
   { id: 'attendance', label: 'Attendance', icon: ClipboardList },
   { id: 'reports', label: 'Reports', icon: FileBarChart2 },
   { id: 'invitations', label: 'Invitations', icon: MailPlus },
+  { id: 'permissions', label: 'Permissions', icon: ShieldCheck },
   { id: 'import', label: 'CSV import', icon: UsersRound },
 ];
 
@@ -29,6 +30,8 @@ export default function OperationsClient() {
   const [services, setServices] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [invitations, setInvitations] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [permissionEdits, setPermissionEdits] = useState({});
   const [report, setReport] = useState(null);
   const [memberId, setMemberId] = useState('');
   const [serviceId, setServiceId] = useState('');
@@ -63,6 +66,7 @@ export default function OperationsClient() {
     if (selected === 'attendance') setAttendance(await api('/api/v1/attendance?' + q));
     if (selected === 'reports') { const from = range.from || new Date(Date.now() - 30 * 86400000).toISOString(); const to = range.to || new Date().toISOString(); setReport(await api('/api/v1/reports/attendance?' + new URLSearchParams({ tenant_id: id, from, to }))); }
     if (selected === 'invitations') setInvitations(await api('/api/v1/invitations?' + q));
+    if (selected === 'permissions') setPermissions(await api('/api/v1/tenants/' + encodeURIComponent(id) + '/memberships'));
   }, []);
 
   useEffect(() => {
@@ -131,6 +135,16 @@ export default function OperationsClient() {
     });
   }
 
+  async function savePermission(userId) {
+    const edit = permissionEdits[userId] || {};
+    await submit(async () => {
+      const data = await api('/api/v1/tenants/' + encodeURIComponent(tenantId) + '/memberships', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, ...edit }) });
+      setPermissions((prev) => prev.map((item) => item.user_id === userId ? { ...item, ...data } : item));
+      setPermissionEdits((prev) => { const next = { ...prev }; delete next[userId]; return next; });
+      await loadTab(tenantId, 'permissions');
+    });
+  }
+
   async function importCsv(event) {
     event.preventDefault();
     await submit(async () => {
@@ -166,6 +180,7 @@ export default function OperationsClient() {
         </section>}
         {tab === 'reports' && <section className='mt-5 rounded-2xl border border-slate-200 bg-white p-5'><div className='flex flex-wrap items-end gap-3'><label><span className='mb-1.5 block text-sm font-medium'>From</span><input type='date' className={inputClass} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></label><label><span className='mb-1.5 block text-sm font-medium'>To</span><input type='date' className={inputClass} value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></label><button type='button' className={buttonClass} onClick={() => submit(() => loadTab(tenantId, 'reports', { from: new Date(dateFrom + 'T00:00:00').toISOString(), to: new Date(dateTo + 'T23:59:59').toISOString() }))}>Generate report</button></div>{report && <><div className='mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5'>{[['Attendance records',report.totals.total],['Present',report.totals.present],['Late',report.totals.late],['Absent',report.totals.absent],['Attendance rate',report.totals.attendance_rate + '%']].map(([label,value]) => <div key={label} className='rounded-xl bg-slate-50 p-4'><p className='text-xs font-semibold text-slate-500'>{label}</p><p className='mt-2 text-2xl font-semibold'>{value}</p></div>)}</div><h3 className='mt-6 font-semibold'>By service</h3><ul className='mt-2 divide-y divide-slate-100'>{report.by_service.map((s) => <li key={s.service_id} className='flex justify-between gap-3 py-3 text-sm'><span>{s.service_name}</span><span className='text-slate-500'>{s.present} present / {s.total} records</span></li>)}</ul><h3 className='mt-6 font-semibold'>Daily volume</h3><ul className='mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>{report.by_day.map((d) => <li key={d.date} className='flex justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm'><span>{d.date}</span><span className='font-semibold'>{d.count}</span></li>)}</ul><p className='mt-5 text-sm text-slate-500'>Active members: {report.active_members} · Active services: {report.active_services}</p></>}</section>}
         {tab === 'invitations' && <section className='mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]'><form onSubmit={createInvitation} className='rounded-2xl border border-slate-200 bg-white p-5'><h2 className='font-semibold'>Invite a teammate</h2><p className='mt-1 text-sm text-slate-500'>Invitation links expire after seven days.</p><label className='mt-4 block'><span className='mb-1.5 block text-sm font-medium'>Email</span><input type='email' required maxLength={254} className={inputClass} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} /></label><label className='mt-4 block'><span className='mb-1.5 block text-sm font-medium'>Role</span><select className={inputClass} value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>{['REPORT_VIEWER','REGISTRAR','MANAGER','ADMIN'].map((r) => <option key={r}>{r}</option>)}</select></label><button disabled={saving} className={'mt-4 ' + buttonClass}>Create invitation</button>{lastInviteUrl && <div className='mt-4 break-all rounded-xl bg-emerald-50 p-3 text-sm'><p className='font-semibold'>Invitation link (share securely)</p><p className='mt-1'>{lastInviteUrl}</p><button type='button' onClick={() => navigator.clipboard?.writeText(lastInviteUrl)} className='mt-2 font-semibold text-emerald-900 underline'>Copy link</button></div>}</form><div className='rounded-2xl border border-slate-200 bg-white p-5'><h2 className='font-semibold'>Recent invitations</h2><ul className='mt-3 divide-y divide-slate-100'>{invitations.map((i) => <li key={i.id} className='py-3'><p className='font-medium'>{i.email}</p><p className='mt-1 text-xs text-slate-500'>{i.role} · {i.status} · Expires {new Date(i.expires_at).toLocaleDateString()}</p></li>)}</ul>{invitations.length === 0 && <p className='mt-4 text-sm text-slate-500'>No invitations found.</p>}</div></section>}
+        {tab === 'permissions' && <section className='mt-5 rounded-2xl border border-slate-200 bg-white p-5'><h2 className='font-semibold'>Workspace roles and access</h2><p className='mt-1 text-sm text-slate-500'>Only owners and administrators can change permissions. The workspace must retain at least one active owner.</p><div className='mt-4 overflow-x-auto'><table className='w-full min-w-[760px] text-left text-sm'><thead className='bg-slate-50 text-xs uppercase text-slate-500'><tr><th className='px-3 py-3'>User ID</th><th className='px-3 py-3'>Role</th><th className='px-3 py-3'>Status</th><th className='px-3 py-3'>Action</th></tr></thead><tbody className='divide-y divide-slate-100'>{permissions.map((p) => { const edit = permissionEdits[p.user_id] || {}; return <tr key={p.user_id}><td className='px-3 py-3 font-mono text-xs'>{p.user_id}</td><td className='px-3 py-3'><select className='min-h-10 rounded-lg border border-slate-200 px-2' value={edit.role || p.role} onChange={(e) => setPermissionEdits((prev) => ({ ...prev, [p.user_id]: { ...(prev[p.user_id] || {}), role: e.target.value } }))}>{['OWNER','ADMIN','MANAGER','PASTOR','MINISTRY_LEADER','GROUP_LEADER','REGISTRAR','ATTENDANCE_OFFICER','REPORT_VIEWER','VOLUNTEER','MEMBER'].map((role) => <option key={role}>{role}</option>)}</select></td><td className='px-3 py-3'><select className='min-h-10 rounded-lg border border-slate-200 px-2' value={edit.status || p.status} onChange={(e) => setPermissionEdits((prev) => ({ ...prev, [p.user_id]: { ...(prev[p.user_id] || {}), status: e.target.value } }))}>{['ACTIVE','SUSPENDED','REMOVED','INVITED'].map((status) => <option key={status}>{status}</option>)}</select></td><td className='px-3 py-3'><button type='button' disabled={saving || !Object.keys(edit).length} onClick={() => savePermission(p.user_id)} className='rounded-lg bg-emerald-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40'>Save</button></td></tr>; })}</tbody></table></div>{permissions.length === 0 && <p className='mt-4 text-sm text-slate-500'>No workspace memberships found, or your role cannot manage them.</p>}</section>}
         {tab === 'import' && <form onSubmit={importCsv} className='mt-5 max-w-3xl rounded-2xl border border-slate-200 bg-white p-5'><h2 className='font-semibold'>Import members from CSV</h2><p className='mt-1 text-sm leading-6 text-slate-500'>Use a header row with <code>full_name</code> and optional <code>email</code>, <code>phone</code>. Up to 1,000 rows per import. Validation is performed before writing.</p><label className='mt-4 block'><span className='mb-1.5 block text-sm font-medium'>CSV content</span><textarea required rows={10} maxLength={2000000} className={inputClass + ' font-mono'} value={csv} onChange={(e) => setCsv(e.target.value)} /></label><button disabled={saving} className={'mt-4 ' + buttonClass}>Validate and import</button></form>}
       </>}
       <p className='mt-8 text-xs leading-5 text-slate-400'>Workspace access is validated by the server for every API request. Configure MongoDB Atlas and Supabase environment secrets before using real data.</p>

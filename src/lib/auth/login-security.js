@@ -17,13 +17,14 @@ function getClientAddress(request) {
   return candidate.slice(0, 100) || 'unknown';
 }
 
-export async function beginLoginAttempt(request, email) {
+export async function beginLoginAttempt(request, email, purpose = 'login') {
   const db = await getDatabase();
   const now = Date.now();
   const bucket = Math.floor(now / LOGIN_WINDOW_MS);
   const expiresAt = new Date((bucket + 2) * LOGIN_WINDOW_MS);
-  const emailKey = `email:${digest(String(email || '').trim().toLowerCase())}:${bucket}`;
-  const ipKey = `ip:${digest(getClientAddress(request))}:${bucket}`;
+  const scope = purpose === 'mfa' ? 'mfa' : 'login';
+  const emailKey = `${scope}:email:${digest(String(email || '').trim().toLowerCase())}:${bucket}`;
+  const ipKey = `${scope}:ip:${digest(getClientAddress(request))}:${bucket}`;
 
   const increment = async (key) => db.collection('auth_rate_limits').findOneAndUpdate(
     { _id: key },
@@ -34,7 +35,7 @@ export async function beginLoginAttempt(request, email) {
   const [emailWindow, ipWindow] = await Promise.all([increment(emailKey), increment(ipKey)]);
   const limited = isLoginThrottled(emailWindow.count, ipWindow.count);
   if (limited) {
-    await recordLoginAttempt(request, email, { success: false, reason: 'rate_limited' });
+    await recordLoginAttempt(request, email, { success: false, reason: 'rate_limited', eventType: scope === 'mfa' ? 'mfa_rate_limited' : 'login_rate_limited' });
     return { limited: true, retryAfter: loginRetryAfterSeconds(now) };
   }
   return { limited: false };

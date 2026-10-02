@@ -13,6 +13,6 @@ export async function GET() {
   } catch (error) {
     const message = String(error?.message || '');
     const missing = message.includes('not configured');
-    return NextResponse.json({ status: 'error', checks: { mongodb: missing ? 'not_configured' : 'unavailable', supabase_environment: process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? 'configured' : 'missing' }, timestamp: new Date().toISOString() }, { status: missing ? 503 : 503 });
+    return NextResponse.json({ status: 'error', checks: { mongodb: missing ? 'not_configured' : 'unavailable', supabase_environment: process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? 'configured' : 'missing' }, timestamp: new Date().toISOString() }, { status: 503 });
   }
 }

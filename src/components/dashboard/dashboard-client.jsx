@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, CircleAlert, Fingerprint, LoaderCircle, LogOut, Plus, Search, UsersRound, Wrench, ShieldCheck } from 'lucide-react';
 
-const MEMBER_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS']);
+const MEMBER_READ_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
 
 async function readJson(response) {
   const payload = await response.json().catch(() => null);

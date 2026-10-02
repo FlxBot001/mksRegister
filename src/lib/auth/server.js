@@ -20,7 +20,7 @@ export function setSessionCookies(response, rawToken, remember = false) {
 }
 
 export function clearAuthCookies(response) {
-  for (const name of [SESSION_COOKIE, REMEMBER_COOKIE, 'mks_access_token', 'mks_refresh_token', 'mks_mfa_pending_access', 'mks_mfa_pending_refresh', 'mks_mfa_pending_factor', 'mks_mfa_pending_remember']) {
+  for (const name of [SESSION_COOKIE, REMEMBER_COOKIE, 'mks_access_token', 'mks_refresh_token', 'mks_mfa_pending_access', 'mks_mfa_pending_refresh', 'mks_mfa_pending_factor', 'mks_mfa_pending_remember', 'mks_mfa_pending_token']) {
     response.cookies.set(name, '', sessionCookieOptions(0));
   }
 }

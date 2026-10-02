@@ -33,10 +33,10 @@ All endpoints below require an authenticated user and the relevant active tenant
 - `GET/POST /api/v1/attendance` — attendance listing and recording.
 - `GET /api/v1/attendance/history?member_id=...` — member attendance history.
 - `GET /api/v1/reports/attendance?from=...&to=...` — summary, service, and daily aggregates.
-- `GET/POST /api/v1/invitations` — create and list pending invitations.
+- `GET/POST /api/v1/invitations` and `POST /api/v1/invitations/accept` — create, list, and accept invitations (acceptance requires the server-only Supabase service-role secret).
 
 Attendance statuses are `PRESENT`, `ABSENT`, `LATE`, and `EXCUSED`. Dates are ISO-compatible timestamps. The API caps list and report ranges to avoid unbounded queries.
 
 ## Important deployment status
 
-MongoDB integration is implemented in source, but a live connection has not been verified until a valid Atlas URI is supplied to the runtime. Invitation delivery/acceptance, invitation-to-Supabase-membership provisioning, tenant onboarding on a Mongo-only architecture, a first-administrator bootstrap, and complete interactive dashboard screens still require implementation and environment-backed testing. The API foundation must not be described as fully production-ready until those steps, lint/build, authentication, tenant-isolation tests, and database integration tests pass.
+MongoDB integration, the first-admin bootstrap script, invitation acceptance, and interactive operations screens are implemented in source, but have not yet been verified against live services. Invitations generate shareable links; no email delivery provider is configured. This is not a Mongo-only architecture: Supabase remains the authentication and tenant-membership authority. The system must not be described as production-ready until lint/build, authentication, tenant-isolation tests, live MongoDB integration tests, invitation provisioning, and deployment checks pass.

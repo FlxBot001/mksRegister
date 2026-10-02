@@ -162,8 +162,8 @@ export default function OperationsClient() {
   const activeTenant = tenants.find((x) => x.id === tenantId);
   const role = activeTenant?.role || '';
   const visibleTabs = TABS.filter((item) => !item.roles || item.roles.includes(role));
-  const canManageServices = ['OWNER', 'ADMIN', 'MANAGER'].includes(role);
-  const canRecordAttendance = ['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR', 'ATTENDANCE_OFFICER'].includes(role);
+  const canManageServices = ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT'].includes(role);
+  const canRecordAttendance = ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'REGISTRAR', 'ATTENDANCE_OFFICER'].includes(role);
   const inviteRoles = role === 'OWNER' ? ['REPORT_VIEWER', 'REGISTRAR', 'MANAGER', 'ADMIN'] : ['REPORT_VIEWER', 'REGISTRAR', 'MANAGER'];
   const allPermissionRoles = ['OWNER', 'ADMIN', 'MANAGER', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER'];
   const permissionRoles = role === 'OWNER' ? allPermissionRoles : allPermissionRoles.filter((item) => !['OWNER', 'ADMIN'].includes(item));

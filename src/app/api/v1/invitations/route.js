@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'node:crypto';
-import { getAuthContext } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth/server';
 import { getTenantMembership } from '@/lib/auth/tenant';
 import { roleHasPermission } from '@/lib/auth/role-policy.mjs';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
@@ -29,7 +29,7 @@ export async function POST(request) {
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Send valid JSON.' } }, { status: 400 }); }
   const tenant = request.headers.get('x-tenant-id') || body?.tenant_id || '';
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
-  if (!membership || !INVITE_ROLES.has(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot invite users.' } }, { status: 403 });
+  if (!membership || !roleHasPermission(membership.role, 'invitations.manage')) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot invite users.' } }, { status: 403 });
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
   const role = typeof body?.role === 'string' ? body.role.toUpperCase() : 'REPORT_VIEWER';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !ASSIGNABLE_ROLES.has(role)) return NextResponse.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Provide a valid email address and an assignable workspace role.' } }, { status: 400 });

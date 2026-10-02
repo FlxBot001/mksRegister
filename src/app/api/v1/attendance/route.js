@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getAuthContext } from '@/lib/supabase/server';
-import { getTenantMembership } from '@/lib/auth/tenant';
+import { canReadAttendance, canRecordAttendance, getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const RECORD_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
 const fail = (error) => { const e = mongoUnavailable(error); return NextResponse.json({ success: false, error: { code: e.status === 503 ? 'DATABASE_NOT_CONFIGURED' : 'DATABASE_ERROR', message: e.message } }, { status: e.status }); };
 function tenantId(request, body) { return request.headers.get('x-tenant-id') || new URL(request.url).searchParams.get('tenant_id') || body?.tenant_id || ''; }
 
@@ -14,7 +13,9 @@ export async function GET(request) {
   if (!auth.user) return NextResponse.json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Please sign in.' } }, { status: 401 });
   const url = new URL(request.url);
   const tenant = tenantId(request);
-  if (!await getTenantMembership(auth.accessToken, auth.user.id, tenant)) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
+  if (!membership) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  if (!canReadAttendance(membership)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot view attendance records.' } }, { status: 403 });
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 50, 1), 200);
   try {
     const db = await getDatabase();
@@ -39,7 +40,7 @@ export async function POST(request) {
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Send valid JSON.' } }, { status: 400 }); }
   const tenant = tenantId(request, body);
   const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
-  if (!membership || !RECORD_ROLES.has(membership.role)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot record attendance.' } }, { status: 403 });
+  if (!canRecordAttendance(membership)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot record attendance.' } }, { status: 403 });
   if (!isValidObjectId(body?.member_id) || !isValidObjectId(body?.service_id)) return NextResponse.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Valid member_id and service_id are required.' } }, { status: 400 });
   const status = body.status || 'PRESENT';
   if (!['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'].includes(status)) return NextResponse.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Status must be PRESENT, ABSENT, LATE, or EXCUSED.' } }, { status: 400 });

@@ -373,6 +373,7 @@ export async function POST(request, { params }) {
     message: 'Signed in successfully.',
   });
   setSessionCookies(response, session, body.remember_session === true);
+  clearPendingMfaCookies(response);
   return response;
 }
 

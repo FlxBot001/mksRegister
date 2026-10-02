@@ -184,7 +184,10 @@ export async function GET(request, { params }) {
   const { action } = await params;
   if (action !== 'session') return fail('NOT_FOUND', 'Route not found.', 404);
   const context = await getAuthContext();
-  if (!context.user) return fail('UNAUTHENTICATED', context.error || 'Please sign in.', 401);
+  if (!context.user) {
+    const unavailable = /not configured|configuration/i.test(context.error || '');
+    return fail(unavailable ? 'AUTH_CONFIGURATION_ERROR' : 'UNAUTHENTICATED', unavailable ? 'Authentication is not configured. Contact your administrator.' : context.error || 'Please sign in.', unavailable ? 503 : 401);
+  }
   return NextResponse.json({
     success: true,
     data: { user: { id: context.user.id, email: context.user.email } },

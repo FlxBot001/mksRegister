@@ -4,7 +4,7 @@ import { getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const ASSIGNABLE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER']);
+const ASSIGNABLE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'COMMUNICATIONS', 'REPORT_VIEWER', 'VOLUNTEER', 'MEMBER']);
 const STATUSES = new Set(['ACTIVE', 'SUSPENDED', 'REMOVED', 'INVITED']);
 const fail = (code, message, status) => NextResponse.json({ success: false, error: { code, message } }, { status });
 
@@ -36,7 +36,7 @@ export async function PATCH(request, { params }) {
   if (body.role !== undefined && !ASSIGNABLE_ROLES.has(body.role)) return fail('VALIDATION_ERROR', 'Select a valid workspace role.', 400);
   if (body.status !== undefined && !STATUSES.has(body.status)) return fail('VALIDATION_ERROR', 'Select a valid membership status.', 400);
   if (body.role === undefined && body.status === undefined) return fail('VALIDATION_ERROR', 'Provide a role or status to update.', 400);
-  if (access.membership.role !== 'OWNER' && (body.role === 'OWNER' || body.role === 'ADMIN')) return fail('PERMISSION_DENIED', 'Only workspace owners can assign owner or administrator roles.', 403);
+  if (access.membership.role !== 'OWNER' && (body.role === 'OWNER' || body.role === 'ADMIN' || body.role === 'MANAGEMENT')) return fail('PERMISSION_DENIED', 'Only workspace owners can assign owner, administrator, or management roles.', 403);
   if (body.user_id === access.auth.user.id && body.status && body.status !== 'ACTIVE') return fail('SELF_LOCKOUT_BLOCKED', 'You cannot suspend or remove your own active membership here.', 409);
   const query = new URLSearchParams({ select: 'user_id,role,status', tenant_id: 'eq.' + tenantId, user_id: 'eq.' + body.user_id, limit: '1' });
   const current = await supabaseFetch('/rest/v1/tenant_memberships?' + query, access.auth.accessToken);

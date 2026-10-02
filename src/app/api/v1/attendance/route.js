@@ -5,7 +5,7 @@ import { getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const RECORD_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR']);
+const RECORD_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR', 'ATTENDANCE_OFFICER']);
 const fail = (error) => { const e = mongoUnavailable(error); return NextResponse.json({ success: false, error: { code: e.status === 503 ? 'DATABASE_NOT_CONFIGURED' : 'DATABASE_ERROR', message: e.message } }, { status: e.status }); };
 function tenantId(request, body) { return request.headers.get('x-tenant-id') || new URL(request.url).searchParams.get('tenant_id') || body?.tenant_id || ''; }
 

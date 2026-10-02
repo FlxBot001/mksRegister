@@ -19,6 +19,7 @@ function fail(error) { const e = mongoUnavailable(error); return NextResponse.js
 export async function PATCH(request, { params }) {
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Send valid JSON.' } }, { status: 400 }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ success: false, error: { code: 'INVALID_BODY', message: 'Request body must be a JSON object.' } }, { status: 400 });
   const access = await authorize(request, body);
   if (access.response) return access.response;
   const { memberId } = await params;

@@ -18,8 +18,10 @@ This is a transitional hybrid architecture: authentication, workspace provisioni
 2. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the existing Auth and tenant-membership integration. Set `SUPABASE_SERVICE_ROLE_KEY` as a server-only secret to enable invitation acceptance; never expose it through a `NEXT_PUBLIC_` variable.
 3. Create a MongoDB Atlas cluster and a dedicated database user. Allow network access only from your deployment provider where possible.
 4. Set `MONGODB_URI` and `MONGODB_DB_NAME`. URL-encode special characters in the MongoDB username/password.
-5. Set `APP_BASE_URL` to the canonical app origin for invitation links.\n6. For the one-time administrator setup, set the `ADMIN_*` values in a private shell environment and run `npm run bootstrap:admin`. The script verifies MongoDB, creates or reuses the Supabase Auth user, creates/resolves the workspace, and grants `OWNER` membership. Do not store a real administrator password in source control; use a one-time secret and remove it from the shell after setup.\n7. Remove the `ADMIN_*` bootstrap variables from the deployment runtime after provisioning.
-6. Install dependencies and run `npm run dev`.
+5. Set `APP_BASE_URL` to the canonical app origin for invitation links.
+6. For one-time administrator setup, set the `ADMIN_*` values privately and run `npm run bootstrap:admin`. The script verifies MongoDB, creates or reuses the Supabase Auth user, creates or resolves the workspace, and grants `OWNER` membership. Do not store a real administrator password in source control; remove it from the shell after setup.
+7. Remove `ADMIN_*` bootstrap variables from the deployment runtime after provisioning.
+8. Install dependencies and run `npm run dev`.
 
 Never commit real connection strings, service-role keys, invitation tokens, or administrator passwords. Do not use production data while validating tenant isolation.
 

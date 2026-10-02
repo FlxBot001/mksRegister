@@ -5,7 +5,7 @@ import { getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
-const WRITE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
+const WRITE_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT']);
 
 function tenantId(request, body) {
   return request.headers.get('x-tenant-id') || new URL(request.url).searchParams.get('tenant_id') || body?.tenant_id || '';

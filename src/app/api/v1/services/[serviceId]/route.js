@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
-import { getAuthContext } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth/server';
 import { getTenantMembership } from '@/lib/auth/tenant';
 import { roleHasPermission } from '@/lib/auth/role-policy.mjs';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { beginLoginAttempt, recordLoginAttempt } from '@/lib/auth/login-security';
+import { isValidEmail, isValidNewPassword, normalizeEmail } from '@/lib/auth/policy.mjs';
 import { clearSessionCookies, getAuthContext, getSupabaseConfig, supabaseFetch } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -73,14 +74,14 @@ export async function POST(request, { params }) {
   const body = parsed.body;
 
   if (action === 'recover') {
-    if (!validEmail(body.email)) return fail('VALIDATION_ERROR', 'Enter a valid email address.', 400);
+    if (!isValidEmail(body.email)) return fail('VALIDATION_ERROR', 'Enter a valid email address.', 400);
     const baseUrl = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).trim().replace(/\/$/, '');
     try {
       await fetch(`${config.url}/auth/v1/recover`, {
         method: 'POST',
         cache: 'no-store',
         headers: { apikey: config.anonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: body.email.trim().toLowerCase(), redirect_to: `${baseUrl}/reset-password` }),
+        body: JSON.stringify({ email: normalizeEmail(body.email), redirect_to: `${baseUrl}/reset-password` }),
       });
     } catch {
       // Keep the response indistinguishable to avoid revealing whether an account exists.
@@ -96,7 +97,7 @@ export async function POST(request, { params }) {
     const accessToken = typeof body.access_token === 'string' ? body.access_token : '';
     const refreshToken = typeof body.refresh_token === 'string' ? body.refresh_token : '';
     const password = typeof body.password === 'string' ? body.password : '';
-    if (!accessToken || !refreshToken || password.length < 12 || password.length > 1024) {
+    if (!accessToken || !refreshToken || !isValidNewPassword(password)) {
       return fail('VALIDATION_ERROR', 'Open the latest reset link and choose a password with at least 12 characters.', 400);
     }
     const saved = await supabaseFetch('/auth/v1/user', accessToken, {
@@ -121,9 +122,9 @@ export async function POST(request, { params }) {
 
   if (action !== 'login') return fail('NOT_FOUND', 'Route not found.', 404);
 
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const email = normalizeEmail(body.email);
   const password = typeof body.password === 'string' ? body.password : '';
-  if (!validEmail(email) || !password || password.length > 1024) {
+  if (!isValidEmail(email) || !password || password.length > 1024) {
     return fail('VALIDATION_ERROR', 'Enter a valid email address and password.', 400);
   }
 

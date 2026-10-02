@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { ObjectId } from 'mongodb';
 import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { beginLoginAttempt, recordLoginAttempt } from '@/lib/auth/login-security';
@@ -59,6 +60,34 @@ export async function POST(request, { params }) {
   const parsed = await readBody(request);
   if (parsed.error) return parsed.error;
   const body = parsed.body;
+
+  if (action === 'register') {
+    const email = normalizeEmail(body.email);
+    const password = typeof body.password === 'string' ? body.password : '';
+    const fullName = typeof body.full_name === 'string' ? body.full_name.trim().replace(/\s+/g, ' ') : '';
+    if (!isValidEmail(email) || !isValidNewPassword(password) || fullName.length < 2 || fullName.length > 120) return fail('VALIDATION_ERROR', 'Enter a valid email, a name of 2–120 characters, and a password with at least 12 characters.', 400);
+    let throttle;
+    try { throttle = await beginLoginAttempt(request, email, 'register'); }
+    catch (error) { console.error('Unable to apply registration throttling.', error); return fail('AUTH_SECURITY_UNAVAILABLE', 'Registration is temporarily unavailable. Please try again shortly.', 503); }
+    if (throttle.limited) return fail('RATE_LIMITED', 'Too many attempts. Wait a little before trying again.', 429, { 'Retry-After': String(throttle.retryAfter) });
+    try {
+      const db = await getDatabase();
+      const existing = await db.collection('users').findOne({ email_normalized: email }, { projection: { _id: 1 } });
+      if (existing) return fail('ACCOUNT_EXISTS', 'An account with this email already exists. Sign in or reset your password.', 409);
+      const now = new Date();
+      const user = { _id: new ObjectId(), email, email_normalized: email, full_name: fullName, password_hash: await hashPassword(password), status: 'ACTIVE', email_verified: false, mfa_enabled: false, created_at: now, updated_at: now, password_changed_at: now };
+      await db.collection('users').insertOne(user);
+      await recordLoginAttempt(request, email, { success: true, userId: user._id.toString(), reason: 'account_created', eventType: 'account_registered' });
+      const session = await createSession(user, { remember: false, request });
+      const response = NextResponse.json({ success: true, data: { user: cleanUser(user) }, message: 'Your account has been created.' }, { status: 201 });
+      setSessionCookies(response, session.rawToken, false);
+      return response;
+    } catch (error) {
+      if (error?.code === 11000) return fail('ACCOUNT_EXISTS', 'An account with this email already exists. Sign in or reset your password.', 409);
+      console.error('MongoDB registration failed.', error);
+      return fail('REGISTRATION_UNAVAILABLE', 'Account creation is temporarily unavailable.', 503);
+    }
+  }
 
   if (action === 'login') {
     const email = normalizeEmail(body.email);
@@ -160,7 +189,7 @@ export async function POST(request, { params }) {
     try {
       const db = await getDatabase();
       const secret = generateTotpSecret();
-      await db.collection('users').updateOne({ _id: new (await import('mongodb')).ObjectId(context.user.id) }, { $set: { mfa_pending_secret: encryptSecret(secret), mfa_pending_expires_at: new Date(Date.now() + 10 * 60 * 1000) } });
+      await db.collection('users').updateOne({ _id: new ObjectId(context.user.id) }, { $set: { mfa_pending_secret: encryptSecret(secret), mfa_pending_expires_at: new Date(Date.now() + 10 * 60 * 1000) } });
       return NextResponse.json({ success: true, data: { factor: { id: 'totp', friendly_name: 'Authenticator app', secret, uri: totpUri(secret, context.user.email) } }, message: 'Add this authenticator and verify a code to enable MFA.' });
     } catch (error) { console.error('MFA enrollment failed.', error); return fail('MFA_ENROLL_FAILED', 'Could not start authenticator setup. Check server configuration and try again.', 503); }
   }

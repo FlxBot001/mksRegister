@@ -1,11 +1,13 @@
 import 'server-only';
 
-import { createHash } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { getDatabase } from '@/lib/mongodb/server';
 import { isLoginThrottled, LOGIN_WINDOW_MS, loginRetryAfterSeconds } from '@/lib/auth/policy.mjs';
 
 function digest(value) {
-  return createHash('sha256').update(String(value || '')).digest('hex');
+  const key = process.env.AUTH_AUDIT_HASH_SECRET?.trim();
+  if (!key || key.length < 32) throw new Error('AUTH_AUDIT_HASH_SECRET must be configured with at least 32 characters.');
+  return createHmac('sha256', key).update(String(value || '')).digest('hex');
 }
 
 function getClientAddress(request) {

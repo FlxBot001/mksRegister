@@ -18,7 +18,7 @@ export default function Home() {
         </Link>
         <nav aria-label='Main navigation' className='flex items-center gap-2 sm:gap-3'>
           <Link href='/login' className='rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white sm:px-4'>Sign in</Link>
-          <Link href='/login' className='inline-flex items-center gap-2 rounded-xl bg-emerald-800 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 sm:px-4'>Open workspace <ArrowRight size={16} aria-hidden='true' /></Link>
+          <Link href='/register' className='inline-flex items-center gap-2 rounded-xl bg-emerald-800 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 sm:px-4'>Open workspace <ArrowRight size={16} aria-hidden='true' /></Link>
         </nav>
       </header>
 

@@ -109,6 +109,7 @@ export async function POST(request, { params }) {
         const pending = randomBytes(32).toString('base64url');
         await db.collection('mfa_challenges').insertOne({ token_hash: sha256(pending), user_id: user._id, remember: body.remember_session === true, expires_at: new Date(Date.now() + 5 * 60 * 1000), created_at: new Date() });
         const response = NextResponse.json({ success: true, data: { mfa_required: true, factor_label: 'Authenticator app' }, message: 'Enter the current code from your authenticator app.' });
+        clearAuthCookies(response);
         response.cookies.set('mks_mfa_pending_token', pending, sessionCookieOptions(300));
         response.cookies.set('mks_mfa_pending_remember', body.remember_session === true ? 'true' : 'false', sessionCookieOptions(300));
         await recordLoginAttempt(request, email, { success: true, userId: user._id.toString(), reason: 'password_verified_mfa_required', eventType: 'primary_factor_succeeded' }).catch(() => null);
@@ -229,7 +230,9 @@ export async function POST(request, { params }) {
       const code = typeof body.code === 'string' ? body.code.trim() : '';
       if (!verifyTotp(decryptSecret(user.mfa_secret), code)) return fail('MFA_CODE_INVALID', 'Enter a current authenticator code to disable MFA.', 400);
       await db.collection('users').updateOne({ _id: user._id }, { $set: { mfa_enabled: false, updated_at: new Date() }, $unset: { mfa_secret: '', mfa_enabled_at: '' } });
-      await revokeAllSessions(user._id.toString());
+      const store = await cookies();
+      const currentSession = store.get(SESSION_COOKIE)?.value;
+      await db.collection('sessions').updateMany({ user_id: user._id, revoked_at: null, ...(currentSession ? { token_hash: { $ne: sha256(currentSession) } } : {}) }, { $set: { revoked_at: new Date() } });
       return NextResponse.json({ success: true, data: null, message: 'Authenticator removed. Sign in again.' });
     } catch (error) { console.error('MFA removal failed.', error); return fail('MFA_UNENROLL_FAILED', 'Could not remove the authenticator.', 503); }
   }

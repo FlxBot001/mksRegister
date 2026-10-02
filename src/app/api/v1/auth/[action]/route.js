@@ -164,13 +164,15 @@ export async function POST(request, { params }) {
     }
 
     const factorList = await getFactors(accessToken);
+    if (!factorList.ok) return fail('MFA_FACTORS_UNAVAILABLE', 'Authenticator verification is temporarily unavailable. Please try again.', factorList.status >= 500 ? 503 : 401);
     const factor = factorList.factors.find((item) => item.id === factorId && item.status === 'verified');
-    if (!factorList.ok || !factor) return fail('MFA_FACTOR_UNAVAILABLE', 'This authenticator is no longer available. Sign in again or contact your administrator.', 401);
+    if (!factor) return fail('MFA_FACTOR_UNAVAILABLE', 'This authenticator is no longer available. Sign in again or contact your administrator.', 401);
 
     const verification = await challengeAndVerify(accessToken, factorId, code);
     if (!verification.ok) {
       await recordLoginAttempt(request, identity.data.email, { success: false, userId: identity.data.id, reason: 'invalid_mfa_code', eventType: 'mfa_failed' }).catch(() => null);
-      return fail('MFA_CODE_INVALID', 'That code could not be verified. Check your authenticator and try again.', verification.status === 429 ? 429 : 401);
+      const status = verification.status === 429 ? 429 : verification.status >= 500 ? 503 : 401;
+      return fail(status === 503 ? 'MFA_SERVICE_UNAVAILABLE' : 'MFA_CODE_INVALID', status === 503 ? 'Authenticator verification is temporarily unavailable. Please try again.' : 'That code could not be verified. Check your authenticator and try again.', status);
     }
 
     try {
@@ -224,7 +226,10 @@ export async function POST(request, { params }) {
     const code = typeof body.code === 'string' ? body.code.trim() : '';
     if (!/^[0-9a-f-]{36}$/i.test(factorId) || !/^\d{6,8}$/.test(code)) return fail('VALIDATION_ERROR', 'Enter the six-digit code from your authenticator app.', 400);
     const verification = await challengeAndVerify(context.accessToken, factorId, code);
-    if (!verification.ok) return fail('MFA_CODE_INVALID', 'That code could not be verified. Try the current code from your authenticator app.', verification.status === 429 ? 429 : 400);
+    if (!verification.ok) {
+      const status = verification.status === 429 ? 429 : verification.status >= 500 ? 503 : 400;
+      return fail(status === 503 ? 'MFA_SERVICE_UNAVAILABLE' : 'MFA_CODE_INVALID', status === 503 ? 'Authenticator verification is temporarily unavailable. Please try again.' : 'That code could not be verified. Try the current code from your authenticator app.', status);
+    }
     if (verification.session.user?.id && verification.session.user.id !== context.user.id) return fail('MFA_IDENTITY_MISMATCH', 'The authenticator response did not match this account.', 403);
     const response = NextResponse.json({ success: true, data: { enabled: true }, message: 'Authenticator enabled successfully.' });
     const cookieStore = await cookies();

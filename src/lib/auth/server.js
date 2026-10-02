@@ -57,6 +57,7 @@ export async function getAuthContext() {
     if (!session) return { user: null, accessToken: null, session: null, error: 'Your session has expired. Please sign in again.' };
     const user = await db.collection('users').findOne({ _id: session.user_id, status: 'ACTIVE' }, { projection: { password_hash: 0, recovery_tokens: 0, mfa_secret: 0 } });
     if (!user) return { user: null, accessToken: null, session: null, error: 'This account is not active. Contact your workspace administrator.' };
+    if (user.mfa_enabled && session.mfa_verified !== true) return { user: null, accessToken: null, session: null, error: 'Additional authenticator verification is required. Sign in again to complete the challenge.' };
     await db.collection('sessions').updateOne({ _id: session._id }, { $set: { last_seen_at: now } });
     return { user: { id: user._id.toString(), email: user.email, user_metadata: { full_name: user.full_name || '' }, created_at: user.created_at }, accessToken: rawToken, session: { id: session._id.toString(), mfaVerified: session.mfa_verified }, error: null };
   } catch (error) {

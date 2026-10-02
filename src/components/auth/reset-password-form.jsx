@@ -58,7 +58,7 @@ export default function ResetPasswordForm() {
       }
       setComplete(true);
       window.setTimeout(() => {
-        router.replace('/dashboard');
+        router.replace('/login');
         router.refresh();
       }, 700);
     } catch {
@@ -69,7 +69,7 @@ export default function ResetPasswordForm() {
   }
 
   if (complete) {
-    return <div className='rounded-2xl border border-emerald-200 bg-emerald-50 p-5' role='status'><span className='grid size-10 place-items-center rounded-full bg-white text-emerald-800'><CheckCircle2 size={22} aria-hidden='true' /></span><h3 className='mt-4 font-semibold text-emerald-950'>Password updated</h3><p className='mt-2 text-sm leading-6 text-emerald-900/80'>Your password has been changed. Taking you to your workspace…</p></div>;
+    return <div className='rounded-2xl border border-emerald-200 bg-emerald-50 p-5' role='status'><span className='grid size-10 place-items-center rounded-full bg-white text-emerald-800'><CheckCircle2 size={22} aria-hidden='true' /></span><h3 className='mt-4 font-semibold text-emerald-950'>Password updated</h3><p className='mt-2 text-sm leading-6 text-emerald-900/80'>Your password has been changed. Sign in again with your new password to continue.</p></div>;
   }
 
   return (

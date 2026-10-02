@@ -7,8 +7,8 @@ import { ArrowLeft, ClipboardList, FileBarChart2, LoaderCircle, MailPlus, Refres
 
 const TABS = [
   { id: 'services', label: 'Services', icon: Wrench },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardList },
-  { id: 'reports', label: 'Reports', icon: FileBarChart2 },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardList, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'] },
+  { id: 'reports', label: 'Reports', icon: FileBarChart2, roles: ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'] },
   { id: 'invitations', label: 'Invitations', icon: MailPlus, roles: ['OWNER', 'ADMIN', 'MANAGER'] },
   { id: 'permissions', label: 'Permissions', icon: ShieldCheck, roles: ['OWNER', 'ADMIN'] },
   { id: 'import', label: 'CSV import', icon: UsersRound, roles: ['OWNER', 'ADMIN', 'MANAGER', 'REGISTRAR'] },

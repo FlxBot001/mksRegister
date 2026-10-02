@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getAuthContext } from '@/lib/supabase/server';
-import { getTenantMembership } from '@/lib/auth/tenant';
+import { canReadAttendance, getTenantMembership } from '@/lib/auth/tenant';
 import { getDatabase, isValidObjectId, mongoUnavailable } from '@/lib/mongodb/server';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,9 @@ export async function GET(request) {
   const url = new URL(request.url);
   const tenant = request.headers.get('x-tenant-id') || url.searchParams.get('tenant_id') || '';
   const memberId = url.searchParams.get('member_id');
-  if (!tenant || !await getTenantMembership(auth.accessToken, auth.user.id, tenant)) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  const membership = await getTenantMembership(auth.accessToken, auth.user.id, tenant);
+  if (!tenant || !membership) return NextResponse.json({ success: false, error: { code: 'TENANT_ACCESS_DENIED', message: 'Workspace access denied.' } }, { status: 403 });
+  if (!canReadAttendance(membership)) return NextResponse.json({ success: false, error: { code: 'PERMISSION_DENIED', message: 'Your role cannot view individual attendance history.' } }, { status: 403 });
   if (!isValidObjectId(memberId)) return NextResponse.json({ success: false, error: { code: 'INVALID_MEMBER_ID', message: 'A valid member_id is required.' } }, { status: 400 });
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 500);
   try {

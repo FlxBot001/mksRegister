@@ -1,56 +1,63 @@
 # Authentication and session lifecycle
 
-## Provider and secrets
+## Storage and secrets
 
-MKS Register delegates password verification, account identity, recovery-email delivery, and refresh-token rotation to Supabase Auth. The browser never receives the Supabase service-role key or database credentials. Runtime configuration requires `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `MONGODB_URI`, and `MONGODB_DB_NAME`.
+MKS Register stores identity, password hashes, sessions, MFA settings, reset tokens, memberships, and audit/security events in MongoDB. Passwords use Node.js scrypt with per-password random salts. Session cookies contain random opaque tokens; only SHA-256 hashes of those tokens are stored in MongoDB.
 
-Set `APP_BASE_URL` to the canonical HTTPS application origin. In Supabase Auth settings, add `/reset-password` on that origin to the allowed redirect URLs and configure the recovery email template/provider. Password recovery cannot deliver mail until the provider and sender settings are configured.
+Required server-side configuration:
+- `MONGODB_URI` and `MONGODB_DB_NAME`
+- `AUTH_ENCRYPTION_KEY`: at least 32 characters, used to encrypt TOTP secrets at rest.
+- `AUTH_AUDIT_HASH_SECRET`: at least 32 characters, used for keyed hashes in security events and throttling buckets.
+- `APP_BASE_URL`: canonical app origin used in recovery links.
 
-## Sign-in
+Optional recovery email delivery uses `RESEND_API_KEY` and a verified `AUTH_EMAIL_FROM`. Without these settings, recovery requests still receive a generic response but no email is delivered. Do not represent email recovery as operational until end-to-end delivery is tested.
 
-- `POST /api/v1/auth/login` validates the request and delegates password verification to Supabase Auth.
-- The response stores access and refresh tokens in `HttpOnly`, `SameSite=Lax` cookies. Cookies use `Secure` in production.
-- The optional “Keep me signed in” choice controls the refresh-cookie lifetime: 8 hours when off, 30 days when on. Access-token lifetime follows the provider response.
-- A successful sign-in is not issued if the persistent security event cannot be recorded.
-- Error responses do not distinguish unknown accounts from incorrect passwords.
+## Sign-in and sessions
+
+- `POST /api/v1/auth/register` validates name/email/password, stores a scrypt password hash, and creates a session.
+- `POST /api/v1/auth/login` validates credentials against the MongoDB users collection.
+- Session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` in production.
+- The optional “Keep me signed in” choice sets an eight-hour session or a session lasting up to 30 days.
+- `GET /api/v1/auth/session` checks the opaque session token against MongoDB, verifies account status and expiry, and returns a safe user projection.
+- `POST /api/v1/auth/logout` revokes the current session and clears cookies.
+- `POST /api/v1/auth/revoke-sessions` revokes every active session for the account.
+- Session tokens are not returned in API JSON and are never stored in plaintext in MongoDB.
 
 ## Login throttling and security events
 
-Login attempts use MongoDB's `auth_rate_limits` collection with atomic increments in 15-minute buckets. The current policy allows up to 5 attempts per normalized email hash and 20 attempts per client-address hash per bucket. Exceeding either limit returns HTTP 429 and a `Retry-After` header. Bucket documents expire through a TTL index.
+Login attempts use MongoDB's `auth_rate_limits` collection with atomic increments in time buckets. The current policy allows up to five attempts per normalized email hash and twenty attempts per client-address hash per bucket. Exceeding either limit returns HTTP 429 and a `Retry-After` header. Bucket documents expire through a TTL index.
 
-The `auth_security_events` collection records success/failure, timestamp, user ID where available, reason, a keyed HMAC-SHA-256 hash of the normalized email, a keyed HMAC-SHA-256 hash of the client address, and a bounded user-agent string. Set `AUTH_AUDIT_HASH_SECRET` to a cryptographically random value of at least 32 characters; login is fail-closed if this key is missing or too short. Raw passwords, access tokens, refresh tokens, email addresses, and raw IP addresses are not stored in these records. Configure and review retention for security events under the organization's approved retention policy; this code does not invent a legal retention period.
+The `auth_security_events` collection records event type, timestamp, user ID where available, reason, keyed HMAC-SHA-256 hashes of normalized email and client address, and a bounded user-agent string. Raw passwords, session tokens, email addresses, and raw IP addresses are not stored in these records. Configure retention according to the organization's approved policy; this code does not invent a legal retention period.
 
 The address used for throttling is derived from `x-forwarded-for` or `x-real-ip`. Production ingress must normalize/overwrite forwarding headers and prevent direct access that would allow clients to spoof them.
 
-## Session refresh, sign-out, and revocation
+## MFA
 
-- `GET /api/v1/auth/session` validates the current Supabase identity.
-- Server-side API handlers use the refreshed access token and independently enforce tenant membership/role checks.
-- Expired access tokens are refreshed using the server-only refresh cookie. Failed refresh clears the session cookies.
-- `POST /api/v1/auth/logout` asks Supabase Auth to end the current session and clears local cookies.
-- `POST /api/v1/auth/revoke-sessions` requests global session sign-out from Supabase Auth and clears local cookies.
-- `/dashboard` routes are gated by a session-verification UI guard. API authorization remains mandatory; the UI guard is not a security boundary.
+- `POST /api/v1/auth/mfa-enroll` creates a TOTP secret and QR code.
+- `POST /api/v1/auth/mfa-enroll-verify` verifies the code before enabling MFA.
+- `POST /api/v1/auth/mfa-verify` completes the login challenge after password verification.
+- `GET /api/v1/auth/mfa-factors` lists whether an authenticator is configured.
+- `POST /api/v1/auth/mfa-unenroll` requires a current TOTP code to disable MFA.
 
-The current provider integration does not enumerate every device session in the UI. The security page therefore displays the currently verified account and provides a global revocation action without fabricating a session inventory.
+TOTP secrets are encrypted at rest using `AUTH_ENCRYPTION_KEY`. Back up this key securely and rotate it only with a planned re-encryption migration. The app should deny protected access when an account has MFA enabled but the current session has not completed the MFA challenge.
 
 ## Password recovery
 
-- `POST /api/v1/auth/recover` delegates recovery email delivery to Supabase Auth and always returns a generic confirmation to avoid account enumeration.
-- The recovery email must redirect to `/reset-password` on the configured application origin.
-- The reset page accepts the short-lived recovery session from the provider redirect, strips tokens from the visible URL, validates password confirmation in the UI, and submits the password change server-side.
-- Password reset requires at least 12 characters in the application UI/API. Confirm that the Supabase project's password policy is at least as strict as the application policy.
+- `POST /api/v1/auth/recover` creates a random single-use token whose hash is stored in MongoDB with a 30-minute expiry. The response is generic to avoid account enumeration.
+- When configured, Resend delivers a link to `/reset-password?token=...`.
+- `POST /api/v1/auth/reset-password` validates the token, applies the password policy, marks the token used, and revokes active sessions.
+- The application requires passwords of at least 12 characters.
 
-## Limitations and operational verification
-
-This integration is provider-backed, not a custom password database; password hashing is performed by Supabase Auth. MFA is not yet exposed as an interactive enrollment/challenge flow. Account disablement should be performed through the provider's administrative account controls and/or by changing the user's active tenant memberships; all operational APIs must continue to deny inactive memberships.
+## Operational verification and limitations
 
 Before production use, verify:
-1. Supabase email confirmation and recovery settings.
-2. Allowed redirect URLs for each deployment origin.
-3. Login throttling and event persistence against the configured MongoDB database.
-4. Cookie behavior over HTTPS and across refresh/expiry.
-5. Local logout and global revocation with real test accounts.
-6. Password recovery end-to-end from email link through successful sign-in.
-7. TOTP enrollment, wrong-code handling, sign-in challenge, assurance enforcement, and factor removal.
-8. Disabled/suspended membership denial across every protected API.
-9. Security-event access restrictions and retention under the approved policy.
+1. Password hashing and wrong-password handling against test accounts.
+2. Cookie behavior over HTTPS and across expiry.
+3. Local logout and account-wide revocation with multiple sessions.
+4. TOTP enrollment, QR scanning, wrong-code handling, login challenge, and factor removal.
+5. Recovery email delivery, token expiry/single-use, password reset, and session revocation.
+6. Login throttling and event persistence in MongoDB.
+7. Disabled/suspended account and membership denial across every protected API.
+8. Security-event access restrictions, backup/restore, retention, and incident response.
+
+MFA recovery codes, passkeys, device/session inventory UI, email verification, and administrator-initiated password resets are not yet implemented. Account registration is available, so configure verification and abuse protections before accepting unrestricted public signups in production.

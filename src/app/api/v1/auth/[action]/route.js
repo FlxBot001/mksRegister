@@ -19,7 +19,7 @@ async function readBody(request) {
   }
 }
 
-function setSessionCookies(response, session) {
+function setSessionCookies(response, session, remember = false) {
   const secure = process.env.NODE_ENV === 'production';
   response.cookies.set('mks_access_token', session.access_token, {
     httpOnly: true,
@@ -33,7 +33,14 @@ function setSessionCookies(response, session) {
     secure,
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 8,
+  });
+  response.cookies.set('mks_remember_session', remember ? 'true' : 'false', {
+    httpOnly: true,
+    secure,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 8,
   });
 }
 
@@ -169,7 +176,7 @@ export async function POST(request, { params }) {
     data: { user: { id: session.user.id, email: session.user.email } },
     message: 'Signed in successfully.',
   });
-  setSessionCookies(response, session);
+  setSessionCookies(response, session, body.remember_session === true);
   return response;
 }
 

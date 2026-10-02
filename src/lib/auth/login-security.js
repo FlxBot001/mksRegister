@@ -2,10 +2,7 @@ import 'server-only';
 
 import { createHash } from 'node:crypto';
 import { getDatabase } from '@/lib/mongodb/server';
-
-const WINDOW_MS = 15 * 60 * 1000;
-const EMAIL_LIMIT = 5;
-const IP_LIMIT = 20;
+import { isLoginThrottled, LOGIN_WINDOW_MS, loginRetryAfterSeconds } from '@/lib/auth/policy.mjs';
 
 function digest(value) {
   return createHash('sha256').update(String(value || '')).digest('hex');
@@ -21,8 +18,8 @@ function getClientAddress(request) {
 export async function beginLoginAttempt(request, email) {
   const db = await getDatabase();
   const now = Date.now();
-  const bucket = Math.floor(now / WINDOW_MS);
-  const expiresAt = new Date((bucket + 2) * WINDOW_MS);
+  const bucket = Math.floor(now / LOGIN_WINDOW_MS);
+  const expiresAt = new Date((bucket + 2) * LOGIN_WINDOW_MS);
   const emailKey = `email:${digest(String(email || '').trim().toLowerCase())}:${bucket}`;
   const ipKey = `ip:${digest(getClientAddress(request))}:${bucket}`;
 
@@ -33,10 +30,10 @@ export async function beginLoginAttempt(request, email) {
   );
 
   const [emailWindow, ipWindow] = await Promise.all([increment(emailKey), increment(ipKey)]);
-  const limited = emailWindow.count > EMAIL_LIMIT || ipWindow.count > IP_LIMIT;
+  const limited = isLoginThrottled(emailWindow.count, ipWindow.count);
   if (limited) {
     await recordLoginAttempt(request, email, { success: false, reason: 'rate_limited' });
-    return { limited: true, retryAfter: Math.max(1, Math.ceil(((bucket + 1) * WINDOW_MS - now) / 1000)) };
+    return { limited: true, retryAfter: loginRetryAfterSeconds(now) };
   }
   return { limited: false };
 }

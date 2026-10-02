@@ -19,6 +19,9 @@ Optional recovery email delivery uses `RESEND_API_KEY` and a verified `AUTH_EMAI
 - Session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` in production.
 - The optional “Keep me signed in” choice sets an eight-hour session or a session lasting up to 30 days.
 - `GET /api/v1/auth/session` checks the opaque session token against MongoDB, verifies account status and expiry, and returns a safe user projection.
+- `GET /api/v1/auth/sessions` lists active sessions for the signed-in account without exposing token hashes or IP hashes.
+- `POST /api/v1/auth/revoke-session` revokes one selected session; revoking the current session clears its cookie.
+- `POST /api/v1/auth/change-password` verifies the current password, stores a new scrypt hash, and revokes all other sessions.
 - `POST /api/v1/auth/logout` revokes the current session and clears cookies.
 - `POST /api/v1/auth/revoke-sessions` revokes every active session for the account.
 - Session tokens are not returned in API JSON and are never stored in plaintext in MongoDB.

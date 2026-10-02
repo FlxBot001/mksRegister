@@ -1,6 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { randomBytes } from 'node:crypto';
+import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb/server';
 import { sha256 } from '@/lib/auth/credentials.mjs';
 
@@ -71,6 +72,7 @@ export async function revokeSession(rawToken) {
 
 export async function revokeAllSessions(userId) {
   const db = await getDatabase();
-  const result = await db.collection('sessions').updateMany({ user_id: userId, revoked_at: null }, { $set: { revoked_at: new Date() } });
+  const id = ObjectId.isValid(userId) ? new ObjectId(userId) : userId;
+  const result = await db.collection('sessions').updateMany({ user_id: id, revoked_at: null }, { $set: { revoked_at: new Date() } });
   return result.modifiedCount;
 }

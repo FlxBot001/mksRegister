@@ -62,6 +62,45 @@ export async function POST(request, { params }) {
   if (parsed.error) return parsed.error;
   const body = parsed.body;
 
+  if (action === 'change-password') {
+    const context = await getAuthContext();
+    if (!context.user) return fail('UNAUTHENTICATED', context.error || 'Please sign in again.', 401);
+    const currentPassword = typeof body.current_password === 'string' ? body.current_password : '';
+    const newPassword = typeof body.new_password === 'string' ? body.new_password : '';
+    if (!currentPassword || !isValidNewPassword(newPassword)) return fail('VALIDATION_ERROR', 'Enter your current password and a new password with at least 12 characters.', 400);
+    try {
+      const db = await getDatabase();
+      const user = await db.collection('users').findOne({ _id: new ObjectId(context.user.id), status: 'ACTIVE' });
+      if (!user || !(await verifyPassword(currentPassword, user.password_hash))) return fail('CURRENT_PASSWORD_INVALID', 'Your current password could not be verified.', 401);
+      if (await verifyPassword(newPassword, user.password_hash)) return fail('PASSWORD_REUSE', 'Choose a password different from your current password.', 400);
+      const now = new Date();
+      const saved = await db.collection('users').updateOne({ _id: user._id, password_hash: user.password_hash }, { $set: { password_hash: await hashPassword(newPassword), password_changed_at: now, updated_at: now } });
+      if (!saved.modifiedCount) return fail('PASSWORD_CHANGE_CONFLICT', 'Your account changed while saving. Try again.', 409);
+      await revokeAllSessions(user._id.toString());
+      const session = await createSession(user, { request, mfaVerified: context.session?.mfaVerified === true });
+      await recordLoginAttempt(request, user.email, { success: true, userId: user._id.toString(), reason: 'password_changed', eventType: 'password_changed' });
+      const response = NextResponse.json({ success: true, data: { user: cleanUser(user) }, message: 'Password changed. Other sessions were signed out.' });
+      setSessionCookies(response, session.rawToken, false);
+      return response;
+    } catch (error) { console.error('Password change failed.', error); return fail('PASSWORD_CHANGE_FAILED', 'Could not change the password. Please try again.', 503); }
+  }
+
+  if (action === 'revoke-session') {
+    const context = await getAuthContext();
+    if (!context.user) return fail('UNAUTHENTICATED', context.error || 'Please sign in again.', 401);
+    if (typeof body.session_id !== 'string' || !ObjectId.isValid(body.session_id)) return fail('VALIDATION_ERROR', 'Choose a valid session.', 400);
+    try {
+      const db = await getDatabase();
+      const target = await db.collection('sessions').findOne({ _id: new ObjectId(body.session_id), user_id: new ObjectId(context.user.id), revoked_at: null });
+      if (!target) return fail('SESSION_NOT_FOUND', 'That active session was not found.', 404);
+      await db.collection('sessions').updateOne({ _id: target._id, user_id: new ObjectId(context.user.id), revoked_at: null }, { $set: { revoked_at: new Date() } });
+      await recordLoginAttempt(request, context.user.email, { success: true, userId: context.user.id, reason: 'session_revoked', eventType: 'session_revoked' });
+      const response = NextResponse.json({ success: true, data: { session_id: body.session_id, current: target.token_hash === sha256((await cookies()).get(SESSION_COOKIE)?.value || '') }, message: 'Session revoked.' });
+      if (target.token_hash === sha256((await cookies()).get(SESSION_COOKIE)?.value || '')) clearAuthCookies(response);
+      return response;
+    } catch (error) { console.error('Session revocation failed.', error); return fail('SESSION_REVOKE_FAILED', 'Could not revoke that session.', 503); }
+  }
+
   if (action === 'register') {
     const email = normalizeEmail(body.email);
     const password = typeof body.password === 'string' ? body.password : '';
@@ -244,6 +283,15 @@ export async function POST(request, { params }) {
 
 export async function GET(_request, { params }) {
   const { action } = await params;
+  if (action === 'sessions') {
+    const context = await getAuthContext();
+    if (!context.user) return fail('UNAUTHENTICATED', context.error || 'Please sign in.', 401);
+    try {
+      const db = await getDatabase();
+      const sessions = await db.collection('sessions').find({ user_id: new ObjectId(context.user.id), revoked_at: null, expires_at: { $gt: new Date() } }, { projection: { token_hash: 0, ip_hash: 0 } }).sort({ last_seen_at: -1 }).limit(50).toArray();
+      return NextResponse.json({ success: true, data: sessions.map((item) => ({ id: item._id.toString(), created_at: item.created_at, last_seen_at: item.last_seen_at, expires_at: item.expires_at, user_agent: item.user_agent || 'Unknown browser', current: item._id.toString() === context.session?.id, mfa_verified: item.mfa_verified === true })) });
+    } catch { return fail('SESSIONS_UNAVAILABLE', 'Could not load active sessions.', 503); }
+  }
   if (action === 'session') {
     const context = await getAuthContext();
     if (!context.user) return fail('UNAUTHENTICATED', context.error || 'Please sign in.', 401);

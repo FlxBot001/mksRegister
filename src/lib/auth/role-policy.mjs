@@ -4,7 +4,7 @@ const POLICY = Object.freeze({
   'members.update': ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'REGISTRAR'],
   'attendance.read': ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'REGISTRAR', 'ATTENDANCE_OFFICER'],
   'attendance.create': ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'REGISTRAR', 'ATTENDANCE_OFFICER'],
-  'reports.read': ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'MINISTRY_LEADER', 'GROUP_LEADER', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'],
+  'reports.read': ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT', 'PASTOR', 'REGISTRAR', 'ATTENDANCE_OFFICER', 'REPORT_VIEWER'],
   'services.manage': ['OWNER', 'ADMIN', 'MANAGER', 'MANAGEMENT'],
   'invitations.manage': ['OWNER', 'ADMIN', 'MANAGER'],
   'roles.manage': ['OWNER', 'ADMIN'],
